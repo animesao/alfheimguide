@@ -3,7 +3,7 @@
 
 ![Статус](https://img.shields.io/badge/Status-Soon%20%F0%9F%92%A5-green)
 ![Лицензия](https://img.shields.io/badge/License-MIT-blue)
-[![Присоединиться к сообществу](https://img.shields.io/badge/Community-Discord-7289DA)](ваша_ссылка_на_дискорд)  
+[![Присоединиться к сообществу](https://img.shields.io/badge/Community-Discord-7289DA)]((https://dsc.gg/alfheimguide)  
 
 **AlfheimGuide** — это больше, чем бот. Это история, которая началась с любопытства к программированию и превратилась в нечто *абсолютно невероятное*. Скоро он появится здесь, на GitHub, чтобы стать вашим верным спутником в цифровых мирах!  
 
