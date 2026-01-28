@@ -1,4 +1,4 @@
-# 🌟 Multi-Functional Discord Bot (RU/EN)
+# 🌟 Multi-Functional Discord Bot (RU/EN) 2026
 
 [English Version](#english) | [Русская Версия](#russian)
 
