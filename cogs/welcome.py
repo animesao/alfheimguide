@@ -20,17 +20,26 @@ class Welcome(commands.Cog):
             if not channel or not hasattr(channel, 'send'):
                 return
 
-            welcome_text = str(config.welcome_message or 'Welcome {user}!').replace('{user}', member.mention).replace('{server}', member.guild.name).replace('\\n', '\n')
+            def format_text(text: Optional[str]) -> str:
+                if not text:
+                    return ""
+                return text.replace('{user}', member.mention) \
+                           .replace('{username}', member.name) \
+                           .replace('{server}', member.guild.name) \
+                           .replace('{members}', str(member.guild.member_count)) \
+                           .replace('\\n', '\n')
+
+            welcome_text = format_text(config.welcome_message or 'Welcome {user}!')
             
             embed_color = int(config.embed_color) if config.embed_color else 0x3498db
             embed = discord.Embed(
-                title=str(config.welcome_title or 'Welcome!').replace('{user}', member.name),
+                title=format_text(config.welcome_title or 'Welcome!'),
                 description=welcome_text,
                 color=discord.Color(embed_color)
             )
             
             if config.welcome_footer:
-                embed.set_footer(text=str(config.welcome_footer).replace('{user}', member.name))
+                embed.set_footer(text=format_text(config.welcome_footer))
             
             embed.set_thumbnail(url=member.display_avatar.url)
             
