@@ -41,7 +41,9 @@ MESSAGES = {
         'update': "🛠 **Обновление в репозитории**",
         'repo_deleted': "🗑️ **Репозиторий удален**",
         'last_push': "Последний пуш",
-        'set_channel_first': "⚠️ Сначала установите канал уведомлений командой !set_channel",
+        'set_channel_first': "⚠️ Please set a notification channel first using !set_channel",
+        'user_removed': "✅ Пользователь {username} больше не отслеживается.",
+        'user_not_tracked': "⚠️ Пользователь {username} не отслеживается на этом сервере.",
         'kicked': "Исключен",
         'banned': "Забанен",
         'unbanned': "Разбанен",
@@ -82,6 +84,8 @@ MESSAGES = {
         'repo_deleted': "🗑️ **Repository Deleted**",
         'last_push': "Last push",
         'set_channel_first': "⚠️ Please set a notification channel first using !set_channel",
+        'user_removed': "✅ User {username} is no longer being tracked.",
+        'user_not_tracked': "⚠️ User {username} is not being tracked on this server.",
         'kicked': "Kicked",
         'banned': "Banned",
         'unbanned': "Unbanned",
@@ -373,6 +377,27 @@ async def add_user_slash(interaction: discord.Interaction, github_username: str)
         
         session.commit()
         await interaction.followup.send(get_msg(interaction.guild.id, 'tracking_started', username=username_to_store, count=repo_count))
+    finally:
+        session.close()
+
+@bot.tree.command(name="remove_user", description="Removes a GitHub user from tracking")
+@app_commands.checks.has_permissions(administrator=True)
+async def remove_user_slash(interaction: discord.Interaction, github_username: str):
+    if not interaction.guild: return
+    session = SessionLocal()
+    try:
+        tracked_user = session.query(TrackedUser).filter_by(guild_id=interaction.guild.id, github_username=github_username).first()
+        if not tracked_user:
+            await interaction.response.send_message(get_msg(interaction.guild.id, 'user_not_tracked', username=github_username))
+            return
+
+        # Delete all snapshots for this user
+        session.query(RepoSnapshot).filter_by(tracked_user_id=tracked_user.id).delete()
+        # Delete the user
+        session.delete(tracked_user)
+        session.commit()
+        
+        await interaction.response.send_message(get_msg(interaction.guild.id, 'user_removed', username=github_username))
     finally:
         session.close()
 
