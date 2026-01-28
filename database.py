@@ -74,6 +74,36 @@ class Warning(Base):
     moderator_id = Column(BigInteger)
     timestamp = Column(DateTime)
 
+class VoiceChannelConfig(Base):
+    __tablename__ = 'voice_channel_configs'
+    id = Column(Integer, primary_key=True)
+    guild_id = Column(BigInteger, ForeignKey('guild_configs.guild_id'))
+    creator_channel_id = Column(BigInteger, nullable=False)
+    category_id = Column(BigInteger, nullable=True)
+    default_name = Column(String(100), default='{user} канал')
+    default_user_limit = Column(Integer, default=0)
+    control_channel_id = Column(BigInteger, nullable=True)
+
+class TempVoiceChannel(Base):
+    __tablename__ = 'temp_voice_channels'
+    id = Column(Integer, primary_key=True)
+    guild_id = Column(BigInteger, ForeignKey('guild_configs.guild_id'))
+    channel_id = Column(BigInteger, nullable=False, unique=True)
+    owner_id = Column(BigInteger, nullable=False)
+    name = Column(String(100))
+    user_limit = Column(Integer, default=0)
+    is_locked = Column(Boolean, default=False)
+    is_hidden = Column(Boolean, default=False)
+
+class TicketCategory(Base):
+    __tablename__ = 'ticket_categories'
+    id = Column(Integer, primary_key=True)
+    guild_id = Column(BigInteger, nullable=False)
+    name = Column(String(100), nullable=False)
+    modal_title = Column(String(100), default='Причина открытия тикета')
+    modal_label = Column(String(100), default='Опишите вашу проблему')
+    modal_placeholder = Column(String(200), default='Например: Жалоба на игрока / Техническая ошибка')
+
 # Use local SQLite database
 DATABASE_URL = 'sqlite:///db/bot-db.db'
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
