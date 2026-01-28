@@ -2,7 +2,7 @@ import discord
 import asyncio
 from discord.ext import commands
 from discord import app_commands, ui
-from database import SessionLocal, GuildConfig
+from database import SessionLocal, GuildConfig, TicketCategory
 from typing import Optional
 
 
@@ -78,20 +78,24 @@ class TicketControlView(ui.View):
         await interaction.channel.delete()
 
 
-class TicketReasonModal(ui.Modal, title='Причина открытия тикета'):
-    reason = ui.TextInput(
-        label='Опишите вашу проблему',
-        style=discord.TextStyle.paragraph,
-        placeholder='Например: Жалоба на игрока / Техническая ошибка',
-        required=True,
-        min_length=10,
-        max_length=500
-    )
-
-    def __init__(self, category_name: str, embed_color: int = 0x3498db):
-        super().__init__()
+class TicketReasonModal(ui.Modal):
+    def __init__(self, category_name: str, embed_color: int = 0x3498db, 
+                 modal_title: str = 'Причина открытия тикета',
+                 modal_label: str = 'Опишите вашу проблему',
+                 modal_placeholder: str = 'Например: Жалоба на игрока / Техническая ошибка'):
+        super().__init__(title=modal_title)
         self.category_name = category_name
         self.embed_color = embed_color
+        
+        self.reason = ui.TextInput(
+            label=modal_label,
+            style=discord.TextStyle.paragraph,
+            placeholder=modal_placeholder,
+            required=True,
+            min_length=10,
+            max_length=500
+        )
+        self.add_item(self.reason)
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -126,7 +130,24 @@ class TicketDropdown(ui.Select):
         self.embed_color = embed_color
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(TicketReasonModal(self.values[0], self.embed_color))
+        with SessionLocal() as session:
+            category_config = session.query(TicketCategory).filter_by(
+                guild_id=interaction.guild_id, 
+                name=self.values[0]
+            ).first()
+            
+            if category_config:
+                modal = TicketReasonModal(
+                    self.values[0], 
+                    self.embed_color,
+                    modal_title=category_config.modal_title,
+                    modal_label=category_config.modal_label,
+                    modal_placeholder=category_config.modal_placeholder
+                )
+            else:
+                modal = TicketReasonModal(self.values[0], self.embed_color)
+                
+        await interaction.response.send_modal(modal)
 
 
 class TicketButton(ui.Button):
@@ -135,7 +156,24 @@ class TicketButton(ui.Button):
         self.embed_color = embed_color
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(TicketReasonModal(self.label, self.embed_color))
+        with SessionLocal() as session:
+            category_config = session.query(TicketCategory).filter_by(
+                guild_id=interaction.guild_id, 
+                name=self.label
+            ).first()
+            
+            if category_config:
+                modal = TicketReasonModal(
+                    self.label, 
+                    self.embed_color,
+                    modal_title=category_config.modal_title,
+                    modal_label=category_config.modal_label,
+                    modal_placeholder=category_config.modal_placeholder
+                )
+            else:
+                modal = TicketReasonModal(self.label, self.embed_color)
+                
+        await interaction.response.send_modal(modal)
 
 
 class TicketPersistentView(ui.View):
@@ -184,6 +222,15 @@ class Tickets(commands.Cog):
         cat_list = [c.strip() for c in categories.split(',')]
         mode = style.value if style else "dropdown"
         
+        # Save categories to DB if they don't exist
+        with SessionLocal() as session:
+            for cat_name in cat_list:
+                exists = session.query(TicketCategory).filter_by(guild_id=interaction.guild_id, name=cat_name).first()
+                if not exists:
+                    new_cat = TicketCategory(guild_id=interaction.guild_id, name=cat_name)
+                    session.add(new_cat)
+            session.commit()
+
         if custom_color:
             try:
                 embed_color = int(custom_color.replace('#', ''), 16)
@@ -201,6 +248,26 @@ class Tickets(commands.Cog):
         view = TicketPersistentView(cat_list, mode, embed_color)
         await interaction.channel.send(embed=embed, view=view)
         await interaction.response.send_message("✅ Сообщение для тикетов отправлено.", ephemeral=True)
+
+    @app_commands.command(name="ticket_config_category", description="Настроить модальное окно для категории тикетов")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def ticket_config_category(self, interaction: discord.Interaction, 
+                                    category_name: str,
+                                    modal_title: Optional[str] = None,
+                                    modal_label: Optional[str] = None,
+                                    modal_placeholder: Optional[str] = None):
+        with SessionLocal() as session:
+            cat = session.query(TicketCategory).filter_by(guild_id=interaction.guild_id, name=category_name).first()
+            if not cat:
+                cat = TicketCategory(guild_id=interaction.guild_id, name=category_name)
+                session.add(cat)
+            
+            if modal_title: cat.modal_title = modal_title
+            if modal_label: cat.modal_label = modal_label
+            if modal_placeholder: cat.modal_placeholder = modal_placeholder
+            
+            session.commit()
+            await interaction.response.send_message(f"✅ Настройки для категории `{category_name}` обновлены.", ephemeral=True)
 
     @app_commands.command(name="ticket_color", description="Изменить цвет текущего тикета")
     async def ticket_color(self, interaction: discord.Interaction, color: str):
