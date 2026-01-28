@@ -71,6 +71,7 @@ MESSAGES = {
         'dm_warn': "Вы получили предупреждение в **{server}**\nПричина: {reason}",
         'automod_bad_words': "⚠️ {user}, следите за языком!",
         'automod_links': "⚠️ {user}, ссылки запрещены!",
+        'anime_title': "🌸 Случайное Аниме",
     },
     'en': {
         'set_channel': "✅ Notification channel set to: {channel}",
@@ -113,6 +114,7 @@ MESSAGES = {
         'dm_warn': "You were warned in **{server}**\nReason: {reason}",
         'automod_bad_words': "⚠️ {user}, watch your language!",
         'automod_links': "⚠️ {user}, links are not allowed!",
+        'anime_title': "🌸 Random Anime",
     }
 }
 
@@ -188,6 +190,12 @@ async def on_ready():
         print("Loaded AI Chat")
     except Exception as e:
         print(f"Failed to load AI Chat: {e}")
+
+    try:
+        await bot.load_extension('cogs.anime')
+        print("Loaded Anime cog")
+    except Exception as e:
+        print(f"Failed to load Anime cog: {e}")
     
     try:
         synced = await bot.tree.sync()
