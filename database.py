@@ -39,6 +39,15 @@ class GuildConfig(Base):
     bad_words = Column(Text, default='') # Comma separated
     anti_spam = Column(Boolean, default=False)
     anti_links = Column(Boolean, default=False)
+    automod_action = Column(String(20), default='warn') # warn, mute, kick, ban
+    mute_duration = Column(Integer, default=10) # minutes for auto-mute
+
+class TempBan(Base):
+    __tablename__ = 'temp_bans'
+    id = Column(Integer, primary_key=True)
+    guild_id = Column(BigInteger, ForeignKey('guild_configs.guild_id'))
+    user_id = Column(BigInteger)
+    unban_time = Column(DateTime)
 
 class TrackedUser(Base):
     __tablename__ = 'tracked_users'
