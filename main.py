@@ -8,7 +8,7 @@ from discord.ext import commands, tasks
 load_dotenv()
 
 from github import Github, Auth
-from database import SessionLocal, TrackedUser, RepoSnapshot, GuildConfig, init_db
+from database import SessionLocal, TrackedUser, RepoSnapshot, GuildConfig, TempBan, init_db
 from datetime import datetime, timezone
 from typing import Optional, Union
 
@@ -57,6 +57,7 @@ MESSAGES = {
         'warn_success': "✅ {member} получил предупреждение: {reason}",
         'clear_success': "✅ Удалено {count} сообщений.",
         'automod_updated': "✅ Настройки авто-модерации обновлены: Включен={enabled}, Анти-ссылки={anti_links}",
+        'tempban_success': "✅ {member} забанен временно на {duration}.",
         'github_disabled': "⚠️ Отслеживание GitHub отключено на этом сервере.",
         'module_updated': "✅ Модуль **{module}** теперь **{state}**.",
         'enabled': "Включен",
@@ -100,6 +101,7 @@ MESSAGES = {
         'warn_success': "✅ {member} warned for: {reason}",
         'clear_success': "✅ Deleted {count} messages.",
         'automod_updated': "✅ Automod settings updated: Enabled={enabled}, Anti-Links={anti_links}",
+        'tempban_success': "✅ {member} temp-banned for {duration}.",
         'github_disabled': "⚠️ GitHub tracking is disabled on this server.",
         'module_updated': "✅ Module **{module}** is now **{state}**.",
         'enabled': "Enabled",
@@ -145,6 +147,33 @@ def get_msg(guild_id: int, key: str, **kwargs) -> str:
 
 from discord import app_commands
 
+@tasks.loop(minutes=1)
+async def check_temp_bans():
+    session = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        expired_bans = session.query(TempBan).filter(TempBan.unban_time <= now).all()
+        for ban in expired_bans:
+            guild = bot.get_guild(ban.guild_id)
+            if guild:
+                try:
+                    user = await bot.fetch_user(ban.user_id)
+                    await guild.unban(user, reason="Tempban expired")
+                    # Try to notify in some channel if possible
+                    config = get_config(session, guild.id)
+                    if config.target_channel_id:
+                        channel = bot.get_channel(config.target_channel_id)
+                        if channel and hasattr(channel, 'send'):
+                            await channel.send(get_msg(guild.id, 'unbanned_auto', user=user.name))
+                except Exception as e:
+                    print(f"Error unbanning user {ban.user_id}: {e}")
+            session.delete(ban)
+        session.commit()
+    except Exception as e:
+        print(f"Error checking temp bans: {e}")
+    finally:
+        session.close()
+
 @tasks.loop(minutes=2)
 async def update_status():
     session = SessionLocal()
@@ -183,6 +212,9 @@ async def on_ready():
     from cogs.tickets import TicketPersistentView
     bot.add_view(TicketPersistentView([], "dropdown"))
     bot.add_view(TicketPersistentView([], "buttons"))
+
+    if not check_temp_bans.is_running():
+        check_temp_bans.start()
     
     # Load AI Chat
     try:
