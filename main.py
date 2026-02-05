@@ -78,6 +78,7 @@ MESSAGES = {
         'snake_instructions': "Используйте кнопки для движения",
         'snake_game_over': "💥 Игра окончена!",
         'score': "Счёт",
+        'anime_title': "🌸 Случайное Аниме",
     },
     'en': {
         'set_channel': "✅ Notification channel set to: {channel}",
@@ -127,6 +128,7 @@ MESSAGES = {
         'snake_instructions': "Use buttons to move",
         'snake_game_over': "💥 Game over!",
         'score': "Score",
+        'anime_title': "🌸 Random Anime",
     }
 }
 bot.MESSAGES = MESSAGES
