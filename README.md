@@ -48,7 +48,7 @@ A multi-functional open-source Discord bot written in Python using `discord.py`.
 
 ### 🛠 Installation
 
-1. **Clone the repo**: `git clone ...`
+1. **Clone the repo**: `git clone https://github.com/animesao/alfheimguide.git`
 2. **Install dependencies**: `pip install -r requirements.txt`
 3. **Setup `.env`**:
 
@@ -111,7 +111,7 @@ A multi-functional open-source Discord bot written in Python using `discord.py`.
 
 ### 🛠 Установка
 
-1. **Клонируйте репозиторий**: `git clone ...`
+1. **Клонируйте репозиторий**: `git clone https://github.com/animesao/alfheimguide.git`
 2. **Установите зависимости**: `pip install -r requirements.txt`
 3. **Настройте `.env`**:
 
