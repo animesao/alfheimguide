@@ -7,6 +7,9 @@ from discord.ext import commands, tasks
 
 load_dotenv()
 
+# Bot version
+BOT_VERSION = "2026.4.15"
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -103,6 +106,22 @@ MESSAGES = {
         "verify_button_deleted": "✅ Кнопка удалена!",
         "verify_updated": "✅ Настройки обновлены!",
         "verify_not_setup": "❌ Верификация не настроена!",
+        
+        # Economy
+        "economy_disabled": "💰 Экономическая система отключена",
+        "insufficient_funds": "❌ Недостаточно средств! У вас {balance:,} монет",
+        "transfer_success": "✅ Переведено {amount:,} монет пользователю {user}",
+        "daily_claimed": "🎁 Вы получили ежедневную награду: {amount:,} монет!",
+        "work_success": "💼 Вы {job} и заработали {amount:,} монет!",
+        
+        # Utilities
+        "reminder_set": "✅ Напоминание установлено на {time}",
+        "poll_created": "📊 Опрос создан!",
+        
+        # Moderation
+        "report_submitted": "✅ Жалоба отправлена (ID: {id}). Модераторы скоро её рассмотрят.",
+        "raid_detected": "🚨 ОБНАРУЖЕН РЕЙД! {count} входов за 60 секунд",
+        "slowmode_set": "✅ Медленный режим установлен на {seconds} секунд",
     },
     "en": {
         "set_channel": "✅ Notification channel set to: {channel}",
@@ -163,6 +182,22 @@ MESSAGES = {
         "verify_button_deleted": "✅ Button deleted!",
         "verify_updated": "✅ Settings updated!",
         "verify_not_setup": "❌ Verification not setup!",
+        
+        # Economy
+        "economy_disabled": "💰 Economy system is disabled",
+        "insufficient_funds": "❌ Insufficient funds! You have {balance:,} coins",
+        "transfer_success": "✅ Transferred {amount:,} coins to {user}",
+        "daily_claimed": "🎁 You claimed your daily reward: {amount:,} coins!",
+        "work_success": "💼 You {job} and earned {amount:,} coins!",
+        
+        # Utilities
+        "reminder_set": "✅ Reminder set for {time}",
+        "poll_created": "📊 Poll created!",
+        
+        # Moderation
+        "report_submitted": "✅ Report submitted (ID: {id}). Moderators will review it soon.",
+        "raid_detected": "🚨 RAID DETECTED! {count} joins in 60 seconds",
+        "slowmode_set": "✅ Slowmode set to {seconds} seconds",
     },
 }
 bot.MESSAGES = MESSAGES
@@ -234,7 +269,7 @@ async def update_status():
         repo_count = session.query(RepoSnapshot).count()
         activity = discord.Activity(
             type=discord.ActivityType.watching,
-            name=f"{repo_count} GitHub репозиториев | /help",
+            name=f"{repo_count} GitHub репозиториев | v{BOT_VERSION}",
         )
         await bot.change_presence(activity=activity, status=discord.Status.online)
     except Exception as e:
@@ -247,6 +282,7 @@ async def update_status():
 async def on_ready():
     if bot.user:
         logger.info(f"Logged in as {bot.user.name}")
+        logger.info(f"Bot Version: {BOT_VERSION}")
     init_db()
 
     if not update_status.is_running():
@@ -317,6 +353,44 @@ async def set_channel_slash(
         session.close()
 
 
+@bot.tree.command(name="set_log_channel", description="Sets the log channel for message logs")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_log_channel(
+    interaction: discord.Interaction, channel: discord.TextChannel
+):
+    if not interaction.guild:
+        return
+    session = SessionLocal()
+    try:
+        config = get_config(session, interaction.guild.id)
+        config.log_channel_id = channel.id
+        session.commit()
+        await interaction.response.send_message(
+            f"✅ Log channel set to {channel.mention}"
+        )
+    finally:
+        session.close()
+
+
+@bot.tree.command(name="set_report_channel", description="Sets the report channel")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_report_channel(
+    interaction: discord.Interaction, channel: discord.TextChannel
+):
+    if not interaction.guild:
+        return
+    session = SessionLocal()
+    try:
+        config = get_config(session, interaction.guild.id)
+        config.report_channel_id = channel.id
+        session.commit()
+        await interaction.response.send_message(
+            f"✅ Report channel set to {channel.mention}"
+        )
+    finally:
+        session.close()
+
+
 @bot.tree.command(name="config", description="Configure bot modules and settings")
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.choices(
@@ -324,6 +398,8 @@ async def set_channel_slash(
         app_commands.Choice(name="Levels", value="levels"),
         app_commands.Choice(name="GitHub Tracking", value="github"),
         app_commands.Choice(name="Welcome System", value="welcome"),
+        app_commands.Choice(name="Economy", value="economy"),
+        app_commands.Choice(name="Statistics", value="stats"),
     ],
     action=[
         app_commands.Choice(name="Enable", value="enable"),
@@ -348,6 +424,12 @@ async def config_slash(
             config.github_enabled = enabled
         elif module.value == "welcome":
             config.welcome_enabled = enabled
+        elif module.value == "economy":
+            config.economy_enabled = enabled
+        elif module.value == "stats":
+            config.stats_enabled = enabled
+        
+        session.commit()
 
         state_key = "enabled" if enabled else "disabled"
         state_text = get_msg(interaction.guild.id, state_key)
@@ -435,7 +517,7 @@ async def help_slash(interaction: discord.Interaction):
             )
             embed.add_field(
                 name="🔧 Настройки",
-                value="`/set_channel` - Канал уведомлений\n`/set_lang` - Язык бота\n`/set_color` - Цвет эмбедов\n`/config` - Модули бота\n`/status` - Статус бота",
+                value="`/set_channel` - Канал уведомлений\n`/set_lang` - Язык бота\n`/set_color` - Цвет эмбедов\n`/config` - Модули бота\n`/status` - Статус бота\n`/version` - Версия бота",
                 inline=False,
             )
             embed.add_field(
@@ -445,7 +527,22 @@ async def help_slash(interaction: discord.Interaction):
             )
             embed.add_field(
                 name="🛡️ Модерация",
-                value="`/kick` `/ban` `/unban` `/mute` `/unmute`\n`/warn` `/clear` `/automod_setup`",
+                value="`/kick` `/ban` `/unban` `/mute` `/unmute`\n`/warn` `/clear` `/automod_setup` `/tempban`\n`/report` `/slowmode` `/raid_protection`\n`/massban` `/masskick` `/warnings`",
+                inline=False,
+            )
+            embed.add_field(
+                name="💰 Экономика",
+                value="`/balance` `/daily` `/work` `/transfer`\n`/deposit` `/withdraw` `/shop` `/buy`\n`/leaderboard` `/shop_add` `/shop_remove`",
+                inline=False,
+            )
+            embed.add_field(
+                name="🔧 Утилиты",
+                value="`/remind` `/reminders` `/poll` `/poll_results`\n`/serverinfo` `/userinfo`",
+                inline=False,
+            )
+            embed.add_field(
+                name="📊 Статистика",
+                value="`/topmembers` `/channelstats` `/serverstats`\n`/userstats` `/activity_graph`",
                 inline=False,
             )
             embed.add_field(
@@ -459,13 +556,15 @@ async def help_slash(interaction: discord.Interaction):
                 inline=False,
             )
             embed.add_field(name="📊 Уровни", value="`/rank` - Ваш ранг", inline=False)
+            embed.add_field(name="🎮 Игры", value="`/minesweeper` `/snake` `/anime`", inline=False)
+            embed.set_footer(text=f"Alfheim Guide Bot v{BOT_VERSION}")
         else:
             embed = discord.Embed(
                 title="📚 Bot Commands", color=discord.Color(embed_color)
             )
             embed.add_field(
                 name="🔧 Settings",
-                value="`/set_channel` - Notification channel\n`/set_lang` - Bot language\n`/set_color` - Embed color\n`/config` - Bot modules\n`/status` - Bot status",
+                value="`/set_channel` - Notification channel\n`/set_lang` - Bot language\n`/set_color` - Embed color\n`/config` - Bot modules\n`/status` - Bot status\n`/version` - Bot version",
                 inline=False,
             )
             embed.add_field(
@@ -475,7 +574,22 @@ async def help_slash(interaction: discord.Interaction):
             )
             embed.add_field(
                 name="🛡️ Moderation",
-                value="`/kick` `/ban` `/unban` `/mute` `/unmute`\n`/warn` `/clear` `/automod_setup`",
+                value="`/kick` `/ban` `/unban` `/mute` `/unmute`\n`/warn` `/clear` `/automod_setup` `/tempban`\n`/report` `/slowmode` `/raid_protection`\n`/massban` `/masskick` `/warnings`",
+                inline=False,
+            )
+            embed.add_field(
+                name="💰 Economy",
+                value="`/balance` `/daily` `/work` `/transfer`\n`/deposit` `/withdraw` `/shop` `/buy`\n`/leaderboard` `/shop_add` `/shop_remove`",
+                inline=False,
+            )
+            embed.add_field(
+                name="🔧 Utilities",
+                value="`/remind` `/reminders` `/poll` `/poll_results`\n`/serverinfo` `/userinfo`",
+                inline=False,
+            )
+            embed.add_field(
+                name="📊 Statistics",
+                value="`/topmembers` `/channelstats` `/serverstats`\n`/userstats` `/activity_graph`",
                 inline=False,
             )
             embed.add_field(
@@ -489,6 +603,8 @@ async def help_slash(interaction: discord.Interaction):
                 inline=False,
             )
             embed.add_field(name="📊 Levels", value="`/rank` - Your rank", inline=False)
+            embed.add_field(name="🎮 Games", value="`/minesweeper` `/snake` `/anime`", inline=False)
+            embed.set_footer(text=f"Alfheim Guide Bot v{BOT_VERSION}")
 
         await interaction.response.send_message(embed=embed)
     finally:
@@ -532,11 +648,27 @@ async def status_slash(interaction: discord.Interaction):
             else "None",
             inline=True,
         )
+        embed.add_field(
+            name="Message Log Channel",
+            value=f"<#{config.log_channel_id}>"
+            if config.log_channel_id
+            else "None",
+            inline=True,
+        )
+        embed.add_field(
+            name="Report Channel",
+            value=f"<#{config.report_channel_id}>"
+            if config.report_channel_id
+            else "None",
+            inline=True,
+        )
 
         modules = []
         modules.append(f"Levels {'✅' if config.levels_enabled else '❌'}")
         modules.append(f"GitHub {'✅' if config.github_enabled else '❌'}")
         modules.append(f"Welcome {'✅' if config.welcome_enabled else '❌'}")
+        modules.append(f"Economy {'✅' if config.economy_enabled else '❌'}")
+        modules.append(f"Statistics {'✅' if config.stats_enabled else '❌'}")
 
         embed.add_field(name="Modules Status", value="\n".join(modules), inline=False)
 
@@ -544,7 +676,62 @@ async def status_slash(interaction: discord.Interaction):
             ", ".join([str(u.github_username) for u in tracked]) if tracked else "None"
         )
         embed.add_field(name="Tracked GitHub Users", value=users_list, inline=False)
+        embed.set_footer(text=f"Bot Version: {BOT_VERSION}")
 
+        await interaction.response.send_message(embed=embed)
+    finally:
+        session.close()
+
+
+@bot.tree.command(name="version", description="Shows bot version information")
+async def version_slash(interaction: discord.Interaction):
+    """Display bot version and update information"""
+    if not interaction.guild:
+        return
+    
+    session = SessionLocal()
+    try:
+        config = session.query(GuildConfig).filter_by(guild_id=interaction.guild.id).first()
+        color_int = int(config.embed_color) if config and config.embed_color else 0x3498db
+        
+        embed = discord.Embed(
+            title="🤖 Bot Version Information",
+            description=f"**Alfheim Guide Bot**\nVersion `{BOT_VERSION}`",
+            color=discord.Color(color_int)
+        )
+        
+        # Version details
+        embed.add_field(
+            name="📦 Release",
+            value=f"Version: `{BOT_VERSION}`\nCodename: `Economy & Statistics`\nDate: `April 15, 2026`",
+            inline=False
+        )
+        
+        # Features
+        embed.add_field(
+            name="✨ Key Features",
+            value="• 💰 Economy System\n• 📊 Advanced Statistics\n• 🛡️ Enhanced Moderation\n• 🔧 Utility Commands\n• 🗄️ Database Migration",
+            inline=False
+        )
+        
+        # Stats
+        embed.add_field(
+            name="📊 Statistics",
+            value=f"• Commands: `50+`\n• Modules: `10+`\n• Languages: `RU/EN`",
+            inline=True
+        )
+        
+        # Links
+        embed.add_field(
+            name="🔗 Links",
+            value="[GitHub](https://github.com/animesao/alfheimguide)\n[Discord](https://dsc.gg/alfheimguide)\n[Website](http://alfheimguide.spcfy.eu/)",
+            inline=True
+        )
+        
+        embed.set_footer(text=f"Alfheim Guide Bot v{BOT_VERSION}")
+        if interaction.client.user:
+            embed.set_thumbnail(url=interaction.client.user.display_avatar.url)
+        
         await interaction.response.send_message(embed=embed)
     finally:
         session.close()
