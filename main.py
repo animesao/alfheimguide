@@ -714,23 +714,69 @@ async def version_slash(interaction: discord.Interaction):
         config = session.query(GuildConfig).filter_by(guild_id=interaction.guild.id).first()
         color_int = int(config.embed_color) if config and config.embed_color else 0x3498db
         
+        # Load version info from .version file
+        version_data = {
+            "version": BOT_VERSION,
+            "codename": "Auto-Update & Enhanced GitHub",
+            "release_date": "2026-04-16",
+            "features": [
+                "Auto-Update System",
+                "Beautiful GitHub Notifications",
+                "Economy System",
+                "Advanced Statistics",
+                "Enhanced Moderation",
+                "Utility Commands"
+            ]
+        }
+        
+        try:
+            import json
+            with open(".version", "r", encoding="utf-8") as f:
+                version_data = json.load(f)
+        except Exception as e:
+            logger.warning(f"Could not load .version file: {e}")
+        
+        # Parse date
+        release_date = version_data.get("release_date", "2026-04-16")
+        try:
+            date_obj = datetime.strptime(release_date, "%Y-%m-%d")
+            formatted_date = date_obj.strftime("%B %d, %Y")
+        except:
+            formatted_date = release_date
+        
         embed = discord.Embed(
             title="🤖 Bot Version Information",
-            description=f"**Alfheim Guide Bot**\nVersion `{BOT_VERSION}`",
+            description=f"**Alfheim Guide Bot**\nVersion `{version_data.get('version', BOT_VERSION)}`",
             color=discord.Color(color_int)
         )
         
         # Version details
         embed.add_field(
             name="📦 Release",
-            value=f"Version: `{BOT_VERSION}`\nCodename: `Economy & Statistics`\nDate: `April 15, 2026`",
+            value=f"Version: `{version_data.get('version', BOT_VERSION)}`\nCodename: `{version_data.get('codename', 'Unknown')}`\nDate: `{formatted_date}`",
             inline=False
         )
         
-        # Features
+        # Features from .version file
+        features = version_data.get("features", [])
+        feature_emojis = {
+            "Auto-Update System": "🔄",
+            "Beautiful GitHub Notifications": "🎨",
+            "Economy System": "💰",
+            "Advanced Statistics": "📊",
+            "Enhanced Moderation": "🛡️",
+            "Utility Commands": "🔧",
+            "Database Migration Tools": "🗄️"
+        }
+        
+        features_text = "\n".join([
+            f"• {feature_emojis.get(f, '✨')} {f}" 
+            for f in features[:6]  # Show max 6 features
+        ])
+        
         embed.add_field(
             name="✨ Key Features",
-            value="• 💰 Economy System\n• 📊 Advanced Statistics\n• 🛡️ Enhanced Moderation\n• 🔧 Utility Commands\n• 🗄️ Database Migration",
+            value=features_text or "• Multiple features available",
             inline=False
         )
         
@@ -748,7 +794,7 @@ async def version_slash(interaction: discord.Interaction):
             inline=True
         )
         
-        embed.set_footer(text=f"Alfheim Guide Bot v{BOT_VERSION}")
+        embed.set_footer(text=f"Alfheim Guide Bot v{version_data.get('version', BOT_VERSION)}")
         if interaction.client.user:
             embed.set_thumbnail(url=interaction.client.user.display_avatar.url)
         
