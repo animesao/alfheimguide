@@ -8,7 +8,7 @@ from discord.ext import commands, tasks
 load_dotenv()
 
 # Bot version
-BOT_VERSION = "2026.4.15"
+BOT_VERSION = "2026.4.16"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -283,6 +283,26 @@ async def on_ready():
     if bot.user:
         logger.info(f"Logged in as {bot.user.name}")
         logger.info(f"Bot Version: {BOT_VERSION}")
+    
+    # Check for updates
+    try:
+        from update_checker import check_and_update
+        logger.info("🔍 Checking for updates...")
+        update_info = await check_and_update(BOT_VERSION, auto_update=False)
+        
+        if update_info:
+            logger.warning("=" * 60)
+            logger.warning(f"🎉 NEW VERSION AVAILABLE: v{update_info.get('version')}")
+            logger.warning(f"📝 Release: {update_info.get('name')}")
+            logger.warning(f"🔗 URL: {update_info.get('html_url')}")
+            logger.warning("=" * 60)
+            logger.info("💡 To update, run: git pull origin main")
+            logger.info("💡 Or use: python update_checker.py --auto-update")
+        else:
+            logger.info("✅ Bot is up to date!")
+    except Exception as e:
+        logger.error(f"Failed to check for updates: {e}")
+    
     init_db()
 
     if not update_status.is_running():
@@ -880,12 +900,19 @@ async def check_github_updates():
                 for repo_name in list(snapshots.keys()):
                     if repo_name not in current_repos:
                         embed = discord.Embed(
-                            title=msgs["repo_deleted"],
-                            description=f"**{repo_name}**",
-                            color=discord.Color.red(),
+                            title="🗑️ Repository Deleted" if lang == "en" else "🗑️ Репозиторий удалён",
+                            description=f"### {repo_name}\n*This repository has been deleted or made private*" if lang == "en" else f"### {repo_name}\n*Этот репозиторий был удалён или сделан приватным*",
+                            color=discord.Color.from_rgb(237, 66, 69),
+                            timestamp=datetime.now(timezone.utc)
                         )
                         embed.set_author(
-                            name=github_user.login, icon_url=github_user.avatar_url
+                            name=f"{github_user.login} • GitHub",
+                            icon_url=github_user.avatar_url,
+                            url=github_user.html_url
+                        )
+                        embed.set_footer(
+                            text="GitHub Tracker",
+                            icon_url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
                         )
                         await channel.send(embed=embed)
                         session.delete(snapshots[repo_name])
@@ -921,16 +948,36 @@ async def check_github_updates():
                         session.add(new_snapshot)
                         session.commit()
 
-                        embed.title = msgs["new_repo"]
-                        embed.description = f"**[{repo.name}]({repo.html_url})**\n{repo.description or ''}"
-                        embed.add_field(
-                            name="Language", value=repo.language or "None", inline=True
+                        # Beautiful new repo notification
+                        embed.title = "🚀 New Repository" if lang == "en" else "🚀 Новый репозиторий"
+                        embed.description = f"### [{repo.name}]({repo.html_url})\n{repo.description or ('*No description provided*' if lang == 'en' else '*Описание отсутствует*')}"
+                        embed.color = discord.Color.from_rgb(87, 242, 135)
+                        embed.timestamp = datetime.now(timezone.utc)
+                        
+                        # Repository stats
+                        stats_text = f"⭐ **{repo.stargazers_count:,}**  •  🍴 **{repo.forks_count:,}**  •  👁️ **{repo.watchers_count:,}**"
+                        embed.add_field(name="📊 Stats" if lang == "en" else "📊 Статистика", value=stats_text, inline=False)
+                        
+                        # Repository info
+                        info_lines = []
+                        if repo.language:
+                            info_lines.append(f"💻 **Language:** `{repo.language}`" if lang == "en" else f"💻 **Язык:** `{repo.language}`")
+                        info_lines.append(f"🔓 **Visibility:** {'Public' if not repo.private else 'Private'}" if lang == "en" else f"🔓 **Видимость:** {'Публичный' if not repo.private else 'Приватный'}")
+                        if repo.license:
+                            info_lines.append(f"📜 **License:** {repo.license.name}" if lang == "en" else f"📜 **Лицензия:** {repo.license.name}")
+                        
+                        embed.add_field(name="ℹ️ Info" if lang == "en" else "ℹ️ Информация", value="\n".join(info_lines), inline=False)
+                        
+                        embed.set_author(
+                            name=f"{github_user.login} • GitHub",
+                            icon_url=github_user.avatar_url,
+                            url=github_user.html_url
                         )
-                        embed.add_field(
-                            name="Visibility",
-                            value="Public" if not repo.private else "Private",
-                            inline=True,
+                        embed.set_footer(
+                            text="GitHub Tracker",
+                            icon_url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
                         )
+                        
                         await channel.send(embed=embed)
 
                     elif repo_pushed_at > snapshot.last_pushed_at.replace(
@@ -940,8 +987,11 @@ async def check_github_updates():
                         snapshot.last_pushed_at = repo_pushed_at
                         session.commit()
 
-                        embed.title = msgs["update"]
-                        embed.description = f"**[{repo.name}]({repo.html_url})**\n{repo.description or ''}"
+                        # Beautiful update notification
+                        embed.title = "📝 Repository Update" if lang == "en" else "📝 Обновление репозитория"
+                        embed.description = f"### [{repo.name}]({repo.html_url})\n{repo.description or ('*No description*' if lang == 'en' else '*Без описания*')}"
+                        embed.color = discord.Color.from_rgb(88, 166, 255)
+                        embed.timestamp = repo_pushed_at
 
                         try:
                             commits = repo.get_commits(since=old_push)
@@ -949,64 +999,80 @@ async def check_github_updates():
                             all_files = set()
                             total_additions = 0
                             total_deletions = 0
+                            commit_count = 0
 
                             for c in commits:
                                 if (
                                     c.commit.author.date.replace(tzinfo=timezone.utc)
                                     > old_push
                                 ):
+                                    commit_count += 1
                                     msg = c.commit.message.split("\n")[0]
+                                    # Truncate long commit messages
+                                    if len(msg) > 60:
+                                        msg = msg[:57] + "..."
                                     commit_list.append(
-                                        f"• [`{c.sha[:7]}`]({c.html_url}) {msg}"
+                                        f"[`{c.sha[:7]}`]({c.html_url}) {msg}"
                                     )
                                     commit_data = repo.get_commit(c.sha)
                                     total_additions += commit_data.stats.additions
                                     total_deletions += commit_data.stats.deletions
                                     for f in commit_data.files:
                                         status_emoji = (
-                                            "➕"
+                                            "🟢"
                                             if f.status == "added"
-                                            else "📝"
+                                            else "🟡"
                                             if f.status == "modified"
-                                            else "❌"
+                                            else "🔴"
                                         )
                                         all_files.add(f"{status_emoji} `{f.filename}`")
 
                             if commit_list:
+                                # Branch and stats in one line
+                                branch_stats = f"🌿 `{repo.default_branch}`  •  📊 **+{total_additions:,}** / **-{total_deletions:,}**  •  📝 **{commit_count}** commit{'s' if commit_count != 1 else ''}"
                                 embed.add_field(
-                                    name="Branch",
-                                    value=f"`{repo.default_branch}`",
-                                    inline=True,
-                                )
-                                embed.add_field(
-                                    name="Stats",
-                                    value=f"🟩 +{total_additions}  🟥 -{total_deletions}",
-                                    inline=True,
-                                )
-                                embed.add_field(
-                                    name="Commits",
-                                    value="\n".join(commit_list[:5]),
+                                    name="📌 Details" if lang == "en" else "📌 Детали",
+                                    value=branch_stats,
                                     inline=False,
                                 )
+                                
+                                # Commits (show max 5)
+                                commits_to_show = commit_list[:5]
+                                commits_text = "\n".join(commits_to_show)
+                                if len(commit_list) > 5:
+                                    commits_text += f"\n*...and {len(commit_list) - 5} more commit(s)*" if lang == "en" else f"\n*...и ещё {len(commit_list) - 5} коммит(ов)*"
+                                
+                                embed.add_field(
+                                    name=f"💬 Commits ({min(5, len(commit_list))})" if lang == "en" else f"💬 Коммиты ({min(5, len(commit_list))})",
+                                    value=commits_text,
+                                    inline=False,
+                                )
+                                
+                                # Changed files (show max 8)
                                 if all_files:
-                                    # Sort files to show deletions at the end or marked clearly
                                     sorted_files = sorted(
                                         list(all_files),
-                                        key=lambda x: x[0],
-                                        reverse=True,
+                                        key=lambda x: (x[0] != "🟢", x[0] != "🟡", x),
                                     )
-                                    files_text = "\n".join(sorted_files[:10])
-                                    if len(all_files) > 10:
-                                        files_text += f"\n*...and {len(all_files) - 10} more files*"
+                                    files_to_show = sorted_files[:8]
+                                    files_text = "\n".join(files_to_show)
+                                    if len(all_files) > 8:
+                                        files_text += f"\n*...and {len(all_files) - 8} more file(s)*" if lang == "en" else f"\n*...и ещё {len(all_files) - 8} файл(ов)*"
                                     embed.add_field(
-                                        name="Changed Files",
+                                        name=f"📁 Changed Files ({len(all_files)})" if lang == "en" else f"📁 Изменённые файлы ({len(all_files)})",
                                         value=files_text,
                                         inline=False,
                                     )
 
-                                # Use a darker background look by setting a consistent color if not set
-                                if not config.embed_color:
-                                    embed.color = discord.Color.from_rgb(44, 47, 51)
+                                embed.set_author(
+                                    name=f"{github_user.login} • GitHub",
+                                    icon_url=github_user.avatar_url,
+                                    url=github_user.html_url
+                                )
+                                embed.set_footer(
+                                    text="GitHub Tracker",
+                                    icon_url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+                                )
 
                                 await channel.send(embed=embed)
                         except Exception as e:

@@ -1,4 +1,4 @@
-# 🌟 Multi-Functional Discord Bot (RU/EN) v2026.4.15
+# 🌟 Multi-Functional Discord Bot (RU/EN) v2026.4.16
 
 [English Version](#english) | [Русская Версия](#russian)
 
@@ -184,6 +184,26 @@ A comprehensive, feature-rich open-source Discord bot written in Python using `d
 
 The bot uses SQLite by default. Database file is created automatically at `db/bot-db.db`.
 
+### 🔄 Auto-Update System
+
+The bot includes an automatic update checking system:
+
+- ✅ **Automatic Check**: Checks for updates on startup
+- 🔍 **Version Comparison**: Compares with GitHub releases
+- 🤖 **Auto-Install**: Optional automatic update installation
+
+**Check for updates:**
+```bash
+python update_bot.py
+```
+
+**Auto-install updates:**
+```bash
+python update_bot.py --auto-update
+```
+
+See [AUTO_UPDATE.md](AUTO_UPDATE.md) for detailed documentation.
+
 ### 🎨 Customization
 
 Each server can customize:
@@ -367,6 +387,26 @@ Each server can customize:
 ### 📦 База данных
 
 Бот использует SQLite по умолчанию. Файл базы данных создаётся автоматически в `db/bot-db.db`.
+
+### 🔄 Система автообновления
+
+Бот включает систему автоматической проверки обновлений:
+
+- ✅ **Автоматическая проверка**: Проверяет обновления при запуске
+- 🔍 **Сравнение версий**: Сравнивает с релизами на GitHub
+- 🤖 **Автоустановка**: Опциональная автоматическая установка обновлений
+
+**Проверить обновления:**
+```bash
+python update_bot.py
+```
+
+**Автоматически установить обновления:**
+```bash
+python update_bot.py --auto-update
+```
+
+Подробная документация: [AUTO_UPDATE.md](AUTO_UPDATE.md)
 
 ### 🎨 Персонализация
 

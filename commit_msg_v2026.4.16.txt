@@ -1,0 +1,42 @@
+feat: v2026.4.16 - auto-update system & beautiful GitHub notifications
+
+Major Features:
+- 🔄 Auto-update system with GitHub release checking
+- 🎨 Completely redesigned GitHub notification embeds
+- 📚 Comprehensive documentation for updates
+
+Auto-Update System:
+- Automatic update checking on bot startup
+- CLI tool for manual updates (update_bot.py)
+- Safe update process with local changes detection
+- Detailed release notes display
+- Optional automatic installation
+
+GitHub Notifications Redesign:
+- Modern color scheme (green/blue/red)
+- Enhanced information display with stats
+- Better commit and file change visualization
+- Improved emoji usage and formatting
+- GitHub branding and icons
+
+New Files:
+- update_checker.py - Core update checking module
+- update_bot.py - CLI tool for updates
+- AUTO_UPDATE.md - Complete update guide
+- CHANGELOG.md - Version history
+- ANNOUNCEMENT_v2026.4.16.md - Release announcement
+
+Changes:
+- Updated main.py with update checking on startup
+- Enhanced GitHub tracking embeds with beautiful design
+- Removed !help command (only /help remains)
+- Updated version to 2026.4.16
+- Updated README.md with auto-update info
+
+Documentation:
+- AUTO_UPDATE.md - Full auto-update documentation
+- CHANGELOG.md - Complete version history
+- Updated README.md with new features
+
+Version: 2026.4.16
+Codename: Auto-Update & Enhanced GitHub
