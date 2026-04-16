@@ -724,7 +724,7 @@ async def version_slash(interaction: discord.Interaction):
         # Links
         embed.add_field(
             name="🔗 Links",
-            value="[GitHub](https://github.com/animesao/alfheimguide)\n[Discord](https://dsc.gg/alfheimguide)\n[Website](http://alfheimguide.spcfy.eu/)",
+            value="[GitHub](https://github.com/animesao/alfheimguide)\n[Discord](https://dsc.gg/alfheimguide)\n[Website](http://animesao.spcfy.eu/)",
             inline=True
         )
         
