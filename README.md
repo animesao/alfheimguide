@@ -27,7 +27,7 @@ A comprehensive, feature-rich open-source Discord bot written in Python using `d
 * **🎮 Games**: Minesweeper, Snake, and more
 * **🎨 Customization**: Per-server colors, settings, and modules
 
-#### �️ Advanced Moderation Features
+#### 🧠 Advanced Moderation Features
 * **Message Logging**: Track deleted and edited messages
 * **Report System**: User reporting with moderator review
 * **Anti-Raid Protection**: Automatic detection and prevention
@@ -226,7 +226,7 @@ Each server can customize:
 * **� Игры**: Сапёр, Змейка и другие
 * **�🎨 Персонализация**: Цвета, настройки и модули для каждого сервера
 
-#### �️ Расширенная модерация
+#### 🧠 Расширенная модерация
 * **Логирование сообщений**: Отслеживание удалённых и отредактированных сообщений
 * **Система жалоб**: Жалобы пользователей с проверкой модераторами
 * **Анти-рейд защита**: Автоматическое обнаружение и предотвращение
