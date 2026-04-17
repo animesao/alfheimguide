@@ -8,7 +8,7 @@ from discord.ext import commands, tasks
 load_dotenv()
 
 # Bot version
-BOT_VERSION = "2026.4.16"
+BOT_VERSION = "2026.4.17"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,6 +22,7 @@ from database import (
     SessionLocal,
     TrackedUser,
     RepoSnapshot,
+    ReleaseSnapshot,
     GuildConfig,
     TempBan,
     init_db,
@@ -1123,6 +1124,133 @@ async def check_github_updates():
                                 await channel.send(embed=embed)
                         except Exception as e:
                             logger.error(f"Error fetching commits for {repo.name}: {e}")
+                
+                # Check for new releases
+                try:
+                    releases = repo.get_releases()
+                    release_snapshots = {
+                        r.release_tag: r
+                        for r in session.query(ReleaseSnapshot)
+                        .filter_by(tracked_user_id=user_record.id, repo_name=repo.name)
+                        .all()
+                    }
+                    
+                    for release in releases[:5]:  # Check last 5 releases
+                        if release.tag_name not in release_snapshots:
+                            # New release found!
+                            published_at = release.published_at
+                            if published_at.tzinfo is None:
+                                published_at = published_at.replace(tzinfo=timezone.utc)
+                            
+                            # Save to database
+                            new_release = ReleaseSnapshot(
+                                tracked_user_id=user_record.id,
+                                repo_name=repo.name,
+                                release_tag=release.tag_name,
+                                release_name=release.name,
+                                published_at=published_at,
+                                is_prerelease=release.prerelease,
+                                is_draft=release.draft
+                            )
+                            session.add(new_release)
+                            session.commit()
+                            
+                            # Don't notify about drafts
+                            if release.draft:
+                                continue
+                            
+                            # Beautiful release notification
+                            if release.prerelease:
+                                embed_color = discord.Color.from_rgb(255, 191, 0)  # Orange for pre-release
+                                title = "🔶 Pre-Release" if lang == "en" else "🔶 Пре-релиз"
+                            else:
+                                embed_color = discord.Color.from_rgb(46, 204, 113)  # Green for stable release
+                                title = "🎉 New Release" if lang == "en" else "🎉 Новый релиз"
+                            
+                            embed = discord.Embed(
+                                title=title,
+                                description=f"### [{repo.name}]({repo.html_url}) `{release.tag_name}`\n**{release.name or release.tag_name}**",
+                                color=embed_color,
+                                timestamp=published_at
+                            )
+                            
+                            # Release info
+                            info_lines = []
+                            info_lines.append(f"🏷️ **Tag:** `{release.tag_name}`")
+                            if release.target_commitish:
+                                info_lines.append(f"🌿 **Branch:** `{release.target_commitish}`")
+                            
+                            # Author info
+                            if release.author:
+                                info_lines.append(f"👤 **Author:** [{release.author.login}]({release.author.html_url})")
+                            
+                            embed.add_field(
+                                name="ℹ️ Info" if lang == "en" else "ℹ️ Информация",
+                                value="\n".join(info_lines),
+                                inline=False
+                            )
+                            
+                            # Release notes (truncated)
+                            if release.body:
+                                body_lines = release.body.split("\n")
+                                # Take first 10 lines or 500 chars
+                                body_preview = "\n".join(body_lines[:10])
+                                if len(body_preview) > 500:
+                                    body_preview = body_preview[:497] + "..."
+                                elif len(body_lines) > 10:
+                                    body_preview += f"\n\n*...and {len(body_lines) - 10} more lines*" if lang == "en" else f"\n\n*...и ещё {len(body_lines) - 10} строк*"
+                                
+                                embed.add_field(
+                                    name="📝 Release Notes" if lang == "en" else "📝 Заметки о релизе",
+                                    value=body_preview or ("*No release notes*" if lang == "en" else "*Нет заметок*"),
+                                    inline=False
+                                )
+                            
+                            # Assets
+                            if release.get_assets().totalCount > 0:
+                                assets = list(release.get_assets()[:5])
+                                asset_lines = []
+                                for asset in assets:
+                                    size_mb = asset.size / (1024 * 1024)
+                                    asset_lines.append(f"📦 [{asset.name}]({asset.browser_download_url}) ({size_mb:.1f} MB)")
+                                
+                                if release.get_assets().totalCount > 5:
+                                    asset_lines.append(f"*...and {release.get_assets().totalCount - 5} more*" if lang == "en" else f"*...и ещё {release.get_assets().totalCount - 5}*")
+                                
+                                embed.add_field(
+                                    name=f"📦 Assets ({release.get_assets().totalCount})" if lang == "en" else f"📦 Файлы ({release.get_assets().totalCount})",
+                                    value="\n".join(asset_lines),
+                                    inline=False
+                                )
+                            
+                            # Links
+                            links = f"[🔗 Release Page]({release.html_url})"
+                            if release.zipball_url:
+                                links += f" • [📥 ZIP]({release.zipball_url})"
+                            if release.tarball_url:
+                                links += f" • [📥 TAR]({release.tarball_url})"
+                            
+                            embed.add_field(
+                                name="🔗 Links" if lang == "en" else "🔗 Ссылки",
+                                value=links,
+                                inline=False
+                            )
+                            
+                            embed.set_author(
+                                name=f"{github_user.login} • GitHub",
+                                icon_url=github_user.avatar_url,
+                                url=github_user.html_url
+                            )
+                            embed.set_footer(
+                                text="GitHub Tracker • Release",
+                                icon_url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+                            )
+                            
+                            await channel.send(embed=embed)
+                            
+                except Exception as e:
+                    logger.error(f"Error checking releases for {repo.name}: {e}")
+                    
             except Exception as e:
                 logger.error(f"Error checking {user_record.github_username}: {e}")
     finally:

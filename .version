@@ -1,19 +1,19 @@
 {
-  "version": "2026.4.16",
-  "release_date": "2026-04-16",
-  "codename": "Auto-Update & Enhanced GitHub",
+  "version": "2026.4.17",
+  "release_date": "2026-04-17",
+  "codename": "Release Tracking",
   "major": 2026,
   "minor": 4,
-  "patch": 16,
+  "patch": 17,
   "build": "stable",
   "changelog": "CHANGELOG.md",
   "features": [
+    "GitHub Release Tracking",
     "Auto-Update System",
     "Beautiful GitHub Notifications",
     "Economy System",
     "Advanced Statistics",
     "Enhanced Moderation",
-    "Utility Commands",
-    "Database Migration Tools"
+    "Utility Commands"
   ]
 }

@@ -280,6 +280,27 @@ def migrate_database():
             tables_created.append("suspicious_joins")
             print("  ✅ Created table: suspicious_joins")
         
+        # ==================== GITHUB RELEASE TRACKING ====================
+        print("\n🎉 Checking GitHub release tracking table...")
+        
+        # ReleaseSnapshot table
+        if not table_exists(cursor, "release_snapshots"):
+            cursor.execute("""
+                CREATE TABLE release_snapshots (
+                    id INTEGER PRIMARY KEY,
+                    tracked_user_id INTEGER,
+                    repo_name VARCHAR(100) NOT NULL,
+                    release_tag VARCHAR(100) NOT NULL,
+                    release_name VARCHAR(255),
+                    published_at DATETIME NOT NULL,
+                    is_prerelease INTEGER DEFAULT 0,
+                    is_draft INTEGER DEFAULT 0,
+                    FOREIGN KEY (tracked_user_id) REFERENCES tracked_users(id)
+                )
+            """)
+            tables_created.append("release_snapshots")
+            print("  ✅ Created table: release_snapshots")
+        
         # ==================== CREATE INDEXES ====================
         print("\n📊 Creating indexes for performance...")
         
@@ -293,6 +314,8 @@ def migrate_database():
             ("idx_message_logs_guild", "message_logs", "guild_id"),
             ("idx_message_logs_message_id", "message_logs", "message_id"),
             ("idx_user_activity_guild_user", "user_activity", "guild_id, user_id"),
+            ("idx_release_snapshots_user_repo", "release_snapshots", "tracked_user_id, repo_name"),
+            ("idx_release_snapshots_tag", "release_snapshots", "release_tag"),
         ]
         
         for idx_name, table_name, columns in indexes:

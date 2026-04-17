@@ -78,6 +78,20 @@ class RepoSnapshot(Base):
     tracked_user = relationship("TrackedUser")
 
 
+class ReleaseSnapshot(Base):
+    __tablename__ = "release_snapshots"
+    id = Column(Integer, primary_key=True)
+    tracked_user_id = Column(Integer, ForeignKey("tracked_users.id"))
+    repo_name = Column(String(100), nullable=False)
+    release_tag = Column(String(100), nullable=False)
+    release_name = Column(String(255), nullable=True)
+    published_at = Column(DateTime, nullable=False)
+    is_prerelease = Column(Boolean, default=False)
+    is_draft = Column(Boolean, default=False)
+
+    tracked_user = relationship("TrackedUser")
+
+
 class UserLevel(Base):
     __tablename__ = "user_levels"
     id = Column(Integer, primary_key=True)

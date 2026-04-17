@@ -1,4 +1,4 @@
-# 🌟 Multi-Functional Discord Bot (RU/EN) v2026.4.16
+# 🌟 Multi-Functional Discord Bot (RU/EN) v2026.4.17
 
 [English Version](#english) | [Русская Версия](#russian)
 
@@ -12,7 +12,7 @@ A comprehensive, feature-rich open-source Discord bot written in Python using `d
 
 #### 🎯 Core Systems
 * **Localization**: Full support for English (`en`) and Russian (`ru`)
-* **GitHub Tracking**: Monitor commits, pushes, and new repositories
+* **GitHub Tracking**: Monitor commits, pushes, releases, and new repositories
 * **🛡️ Advanced Moderation**: Complete moderation suite with logging
 * **💰 Economy System**: Virtual currency, shop, daily rewards, and work commands
 * **📊 Statistics**: Detailed server and user analytics

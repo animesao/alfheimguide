@@ -5,6 +5,49 @@ All notable changes to Alfheim Guide Bot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.4.17] - 2026-04-17
+
+### ✨ Added
+- 🎉 **GitHub Release Tracking**: Automatic monitoring of repository releases
+  - Detects new releases (stable and pre-releases)
+  - Beautiful notification embeds with release info
+  - Shows release notes (truncated for readability)
+  - Displays downloadable assets with sizes
+  - Links to release page, ZIP, and TAR downloads
+  - Separate colors for stable (green) and pre-releases (orange)
+  - Author information and branch details
+  - Automatic database tracking of releases
+- 🗄️ **New Database Table**: `ReleaseSnapshot` for tracking releases
+  - Stores release tag, name, published date
+  - Tracks pre-release and draft status
+  - Prevents duplicate notifications
+
+### 🎨 Improved
+- **Release Notifications**: Professional design with comprehensive information
+  - 🎉 Green color for stable releases
+  - 🔶 Orange color for pre-releases
+  - 📝 Release notes preview (first 10 lines or 500 chars)
+  - 📦 Asset list with download links and file sizes
+  - 🔗 Quick links to release page and downloads
+  - 👤 Author attribution
+  - ⏰ Timestamp of release publication
+
+### 🔧 Changed
+- Updated bot version to 2026.4.17
+- Updated `.version` file with new codename "Release Tracking"
+- Added `ReleaseSnapshot` to database imports
+
+### 📦 Database
+- New table: `release_snapshots`
+  - `id` (Primary Key)
+  - `tracked_user_id` (Foreign Key)
+  - `repo_name`
+  - `release_tag`
+  - `release_name`
+  - `published_at`
+  - `is_prerelease`
+  - `is_draft`
+
 ## [2026.4.16] - 2026-04-16
 
 ### ✨ Added
