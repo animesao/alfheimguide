@@ -1127,7 +1127,11 @@ async def check_github_updates():
                 
                 # Check for new releases
                 try:
-                    releases = repo.get_releases()
+                    releases = list(repo.get_releases())
+                    if not releases:
+                        # No releases in this repository, skip
+                        continue
+                        
                     release_snapshots = {
                         r.release_tag: r
                         for r in session.query(ReleaseSnapshot)
@@ -1135,7 +1139,10 @@ async def check_github_updates():
                         .all()
                     }
                     
-                    for release in releases[:5]:  # Check last 5 releases
+                    # Check last 5 releases (or fewer if less available)
+                    releases_to_check = releases[:min(5, len(releases))]
+                    
+                    for release in releases_to_check:
                         if release.tag_name not in release_snapshots:
                             # New release found!
                             published_at = release.published_at
