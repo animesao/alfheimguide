@@ -236,6 +236,12 @@ def get_msg(guild_id: int, key: str, **kwargs) -> str:
 from discord import app_commands
 
 
+async def async_commit(session):
+    """Run session.commit() in a thread executor to avoid blocking the event loop"""
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, session.commit)
+
+
 @tasks.loop(minutes=1)
 async def check_temp_bans():
     session = SessionLocal()
@@ -258,7 +264,7 @@ async def check_temp_bans():
                 except Exception as e:
                     logger.error(f"Error unbanning user {ban.user_id}: {e}")
             session.delete(ban)
-        session.commit()
+        await async_commit(session)
     except Exception as e:
         logger.error(f"Error checking temp bans: {e}")
     finally:
@@ -919,7 +925,7 @@ async def remove_user_slash(interaction: discord.Interaction, github_username: s
         session.close()
 
 
-@tasks.loop(minutes=2)
+@tasks.loop(minutes=5)
 async def check_github_updates():
     if not g:
         return
@@ -974,7 +980,7 @@ async def check_github_updates():
                         )
                         await channel.send(embed=embed)
                         session.delete(snapshots[repo_name])
-                        session.commit()
+                        await async_commit(session)
 
                 for repo_name, repo in current_repos.items():
                     snapshot = snapshots.get(repo_name)
@@ -1000,7 +1006,7 @@ async def check_github_updates():
                             last_pushed_at=repo_pushed_at,
                         )
                         session.add(new_snapshot)
-                        session.commit()
+                        await async_commit(session)
 
                         embed.title = "🚀 New Repository" if lang == "en" else "🚀 Новый репозиторий"
                         embed.description = f"### [{repo.name}]({repo.html_url})\n{repo.description or ('*No description provided*' if lang == 'en' else '*Описание отсутствует*')}"
@@ -1032,7 +1038,7 @@ async def check_github_updates():
                     elif repo_pushed_at > snapshot.last_pushed_at.replace(tzinfo=timezone.utc):
                         old_push = snapshot.last_pushed_at.replace(tzinfo=timezone.utc)
                         snapshot.last_pushed_at = repo_pushed_at
-                        session.commit()
+                        await async_commit(session)
 
                         embed.title = "📝 Repository Update" if lang == "en" else "📝 Обновление репозитория"
                         embed.description = f"### [{repo.name}]({repo.html_url})\n{repo.description or ('*No description*' if lang == 'en' else '*Без описания*')}"
@@ -1115,7 +1121,7 @@ async def check_github_updates():
                                     is_draft=release.draft,
                                 )
                                 session.add(new_release)
-                                session.commit()
+                                await async_commit(session)
 
                                 if release.draft:
                                     continue

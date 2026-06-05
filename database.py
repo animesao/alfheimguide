@@ -1,8 +1,9 @@
 import os
+import sqlite3
 from datetime import datetime
 from sqlalchemy import (
     create_engine, Column, Integer, String, DateTime, ForeignKey,
-    BigInteger, Boolean, Text, Float, JSON,
+    BigInteger, Boolean, Text, Float, JSON, event,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
@@ -405,6 +406,17 @@ class AutoModConfig(Base):
 
 DATABASE_URL = "sqlite:///db/bot-db.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=10000")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA cache_size=-8000")
+        cursor.close()
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
