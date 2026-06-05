@@ -7,8 +7,7 @@ from discord.ext import commands, tasks
 
 load_dotenv()
 
-# Bot version
-BOT_VERSION = "2026.4.17"
+BOT_VERSION = "2026.6.5"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,26 +28,25 @@ from database import (
 )
 from datetime import datetime, timezone
 from typing import Optional
+from functools import lru_cache
 
-# Load configuration from environment variables
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True  # Necessary for welcome messages and moderation
+intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Fix for type error in token
 if GITHUB_TOKEN:
     auth = Auth.Token(GITHUB_TOKEN)
     g = Github(auth=auth)
 else:
     g = None
 
-# Localization
 MESSAGES = {
     "ru": {
+        "unbanned_auto": "⏰ Автоматический разбан пользователя {user}",
         "set_channel": "✅ Канал для уведомлений установлен: {channel}",
         "user_not_found": "❌ Пользователь {username} не найден на GitHub.",
         "user_exists": "⚠️ Пользователь {username} уже отслеживается на этом сервере.",
@@ -72,13 +70,13 @@ MESSAGES = {
         "unmute_success": "✅ {member} больше не в таймауте.",
         "warn_success": "✅ {member} получил предупреждение: {reason}",
         "clear_success": "✅ Удалено {count} сообщений.",
-        "automod_updated": "✅ Настройки авто-модерации обновлены: Включен={enabled}, Анти-ссылки={anti_links}",
+        "automod_updated": "✅ Настройки авто-модерации обновлены.",
         "github_disabled": "⚠️ Отслеживание GitHub отключено на этом сервере.",
         "module_updated": "✅ Модуль **{module}** теперь **{state}**.",
         "enabled": "Включен",
         "disabled": "Выключен",
         "color_updated": "✅ Цвет эмбедов обновлен: `{color}`",
-        "invalid_color": "❌ Неверный формат цвета Hex. Используйте, например, `#3498db` или `3498db`",
+        "invalid_color": "❌ Неверный формат цвета Hex.",
         "reason": "Причина",
         "duration": "Длительность",
         "dm_kick": "Вы были исключены из **{server}**\nПричина: {reason}",
@@ -107,24 +105,22 @@ MESSAGES = {
         "verify_button_deleted": "✅ Кнопка удалена!",
         "verify_updated": "✅ Настройки обновлены!",
         "verify_not_setup": "❌ Верификация не настроена!",
-        
-        # Economy
         "economy_disabled": "💰 Экономическая система отключена",
         "insufficient_funds": "❌ Недостаточно средств! У вас {balance:,} монет",
         "transfer_success": "✅ Переведено {amount:,} монет пользователю {user}",
         "daily_claimed": "🎁 Вы получили ежедневную награду: {amount:,} монет!",
         "work_success": "💼 Вы {job} и заработали {amount:,} монет!",
-        
-        # Utilities
         "reminder_set": "✅ Напоминание установлено на {time}",
         "poll_created": "📊 Опрос создан!",
-        
-        # Moderation
         "report_submitted": "✅ Жалоба отправлена (ID: {id}). Модераторы скоро её рассмотрят.",
         "raid_detected": "🚨 ОБНАРУЖЕН РЕЙД! {count} входов за 60 секунд",
         "slowmode_set": "✅ Медленный режим установлен на {seconds} секунд",
+        "giveaway_created": "🎉 **Розыгрыш создан!**",
+        "giveaway_ended": "🎉 **Розыгрыш завершён!** Победитель: {winner}",
+        "giveaway_enter": "🎉 Участвовать в розыгрыше",
     },
     "en": {
+        "unbanned_auto": "⏰ Auto-unbanned user {user}",
         "set_channel": "✅ Notification channel set to: {channel}",
         "user_not_found": "❌ User {username} not found on GitHub.",
         "user_exists": "⚠️ User {username} is already being tracked on this server.",
@@ -148,13 +144,13 @@ MESSAGES = {
         "unmute_success": "✅ {member} unmuted.",
         "warn_success": "✅ {member} warned for: {reason}",
         "clear_success": "✅ Deleted {count} messages.",
-        "automod_updated": "✅ Automod settings updated: Enabled={enabled}, Anti-Links={anti_links}",
+        "automod_updated": "✅ Automod settings updated.",
         "github_disabled": "⚠️ GitHub tracking is disabled on this server.",
         "module_updated": "✅ Module **{module}** is now **{state}**.",
         "enabled": "Enabled",
         "disabled": "Disabled",
         "color_updated": "✅ Embed color updated to `{color}`",
-        "invalid_color": "❌ Invalid Hex color format. Use e.g. `#3498db` or `3498db`",
+        "invalid_color": "❌ Invalid Hex color format.",
         "reason": "Reason",
         "duration": "Duration",
         "dm_kick": "You were kicked from **{server}**\nReason: {reason}",
@@ -183,28 +179,42 @@ MESSAGES = {
         "verify_button_deleted": "✅ Button deleted!",
         "verify_updated": "✅ Settings updated!",
         "verify_not_setup": "❌ Verification not setup!",
-        
-        # Economy
         "economy_disabled": "💰 Economy system is disabled",
         "insufficient_funds": "❌ Insufficient funds! You have {balance:,} coins",
         "transfer_success": "✅ Transferred {amount:,} coins to {user}",
         "daily_claimed": "🎁 You claimed your daily reward: {amount:,} coins!",
         "work_success": "💼 You {job} and earned {amount:,} coins!",
-        
-        # Utilities
         "reminder_set": "✅ Reminder set for {time}",
         "poll_created": "📊 Poll created!",
-        
-        # Moderation
         "report_submitted": "✅ Report submitted (ID: {id}). Moderators will review it soon.",
         "raid_detected": "🚨 RAID DETECTED! {count} joins in 60 seconds",
         "slowmode_set": "✅ Slowmode set to {seconds} seconds",
+        "giveaway_created": "🎉 **Giveaway created!**",
+        "giveaway_ended": "🎉 **Giveaway ended!** Winner: {winner}",
+        "giveaway_enter": "🎉 Enter Giveaway",
     },
 }
 bot.MESSAGES = MESSAGES
 
 
-def get_config(session: SessionLocal, guild_id: int):
+@lru_cache(maxsize=128)
+def _get_cached_lang(guild_id: int) -> str:
+    """Cache guild language to avoid DB calls on every message"""
+    session = SessionLocal()
+    try:
+        config = session.query(GuildConfig).filter_by(guild_id=guild_id).first()
+        if config and config.language:
+            return str(config.language)
+        return "ru"
+    finally:
+        session.close()
+
+
+def invalidate_lang_cache(guild_id: int):
+    _get_cached_lang.cache_clear()
+
+
+def get_config(session, guild_id: int):
     config = session.query(GuildConfig).filter_by(guild_id=guild_id).first()
     if not config:
         config = GuildConfig(guild_id=guild_id)
@@ -214,21 +224,13 @@ def get_config(session: SessionLocal, guild_id: int):
 
 
 def get_msg(guild_id: int, key: str, **kwargs) -> str:
-    session = SessionLocal()
+    lang = _get_cached_lang(guild_id)
+    messages = MESSAGES.get(lang, MESSAGES["ru"])
+    msg_template = messages.get(key, key)
     try:
-        config = get_config(session, guild_id)
-        lang = str(config.language) if config.language else "ru"
-        messages = MESSAGES.get(lang, MESSAGES["ru"])
-        msg_template = messages.get(key, key)
-        try:
-            return msg_template.format(**kwargs)
-        except KeyError:
-            return msg_template
-    except Exception as e:
-        logger.error(f"Error getting message: {e}")
-        return key
-    finally:
-        session.close()
+        return msg_template.format(**kwargs)
+    except KeyError:
+        return msg_template
 
 
 from discord import app_commands
@@ -279,18 +281,30 @@ async def update_status():
         session.close()
 
 
+async def github_api_call(call_func, *args, max_retries=3, **kwargs):
+    """Async wrapper for GitHub API with rate limiting"""
+    for attempt in range(max_retries):
+        try:
+            return await asyncio.to_thread(call_func, *args, **kwargs)
+        except Exception as e:
+            if "rate limit" in str(e).lower() and attempt < max_retries - 1:
+                wait = 60 * (attempt + 1)
+                logger.warning(f"GitHub rate limited, waiting {wait}s...")
+                await asyncio.sleep(wait)
+                continue
+            raise
+
+
 @bot.event
 async def on_ready():
     if bot.user:
         logger.info(f"Logged in as {bot.user.name}")
         logger.info(f"Bot Version: {BOT_VERSION}")
-    
-    # Check for updates
+
     try:
         from update_checker import check_and_update
         logger.info("🔍 Checking for updates...")
         update_info = await check_and_update(BOT_VERSION, auto_update=False)
-        
         if update_info:
             logger.warning("=" * 60)
             logger.warning(f"🎉 NEW VERSION AVAILABLE: v{update_info.get('version')}")
@@ -298,12 +312,11 @@ async def on_ready():
             logger.warning(f"🔗 URL: {update_info.get('html_url')}")
             logger.warning("=" * 60)
             logger.info("💡 To update, run: git pull origin main")
-            logger.info("💡 Or use: python update_checker.py --auto-update")
         else:
             logger.info("✅ Bot is up to date!")
     except Exception as e:
         logger.error(f"Failed to check for updates: {e}")
-    
+
     init_db()
 
     if not update_status.is_running():
@@ -329,21 +342,27 @@ async def on_ready():
                     logger.error(f"Failed to load cog package {dirname}: {e}")
 
     from cogs.tickets import TicketPersistentView
-    from cogs.verifications import VerificationView
+    from cogs.verifications.verification import VerificationView
+    from database import VerificationConfig, TicketCategory
 
-    bot.add_view(TicketPersistentView([], "dropdown"))
-    bot.add_view(TicketPersistentView([], "buttons"))
-    bot.add_view(VerificationView(0, "buttons"))
-    bot.add_view(VerificationView(0, "dropdown"))
+    s = SessionLocal()
+    try:
+        ticket_guilds = s.query(TicketCategory.guild_id).distinct().all()
+        for (tgid,) in ticket_guilds:
+            cats = s.query(TicketCategory.name).filter_by(guild_id=tgid).all()
+            cat_names = [c[0] for c in cats]
+            mode = "dropdown"
+            color = 0x2ecc71
+            bot.add_view(TicketPersistentView(cat_names, mode, color))
+
+        vconfigs = s.query(VerificationConfig).all()
+        for vc in vconfigs:
+            bot.add_view(VerificationView(vc.guild_id, "buttons"))
+    finally:
+        s.close()
 
     if not check_temp_bans.is_running():
         check_temp_bans.start()
-
-    try:
-        await bot.load_extension("ai.chat")
-        logger.info("Loaded AI Chat")
-    except Exception as e:
-        logger.error(f"Failed to load AI Chat: {e}")
 
     try:
         synced = await bot.tree.sync()
@@ -449,7 +468,7 @@ async def config_slash(
             config.economy_enabled = enabled
         elif module.value == "stats":
             config.stats_enabled = enabled
-        
+
         session.commit()
 
         state_key = "enabled" if enabled else "disabled"
@@ -515,6 +534,8 @@ async def set_lang_slash(
         config = get_config(session, interaction.guild.id)
         config.language = language.value
         session.commit()
+        invalidate_lang_cache(interaction.guild.id)
+        _get_cached_lang.cache_clear()
         await interaction.response.send_message(
             get_msg(interaction.guild.id, "lang_updated")
         )
@@ -576,8 +597,9 @@ async def help_slash(interaction: discord.Interaction):
                 value="`/verify` - Главное меню настроек\n`/verify_setup` - Быстрая настройка\n`/verify_button_list` - Список кнопок",
                 inline=False,
             )
-            embed.add_field(name="📊 Уровни", value="`/rank` - Ваш ранг", inline=False)
+            embed.add_field(name="📊 Уровни", value="`/rank` - Ваш ранг\n`/level_config` - Настройка уровней", inline=False)
             embed.add_field(name="🎮 Игры", value="`/minesweeper` `/snake` `/anime`", inline=False)
+            embed.add_field(name="🎁 Розыгрыши", value="`/giveaway` - Создать розыгрыш", inline=False)
             embed.set_footer(text=f"Alfheim Guide Bot v{BOT_VERSION}")
         else:
             embed = discord.Embed(
@@ -623,8 +645,9 @@ async def help_slash(interaction: discord.Interaction):
                 value="`/verify` - Main settings menu\n`/verify_setup` - Quick setup\n`/verify_button_list` - Button list",
                 inline=False,
             )
-            embed.add_field(name="📊 Levels", value="`/rank` - Your rank", inline=False)
+            embed.add_field(name="📊 Levels", value="`/rank` - Your rank\n`/level_config` - Level config", inline=False)
             embed.add_field(name="🎮 Games", value="`/minesweeper` `/snake` `/anime`", inline=False)
+            embed.add_field(name="🎁 Giveaways", value="`/giveaway` - Create giveaway", inline=False)
             embed.set_footer(text=f"Alfheim Guide Bot v{BOT_VERSION}")
 
         await interaction.response.send_message(embed=embed)
@@ -663,7 +686,7 @@ async def status_slash(interaction: discord.Interaction):
             inline=True,
         )
         embed.add_field(
-            name="Log Channel",
+            name="Mod Log Channel",
             value=f"<#{config.mod_log_channel_id}>"
             if config.mod_log_channel_id
             else "None",
@@ -706,99 +729,95 @@ async def status_slash(interaction: discord.Interaction):
 
 @bot.tree.command(name="version", description="Shows bot version information")
 async def version_slash(interaction: discord.Interaction):
-    """Display bot version and update information"""
     if not interaction.guild:
         return
-    
+
     session = SessionLocal()
     try:
         config = session.query(GuildConfig).filter_by(guild_id=interaction.guild.id).first()
         color_int = int(config.embed_color) if config and config.embed_color else 0x3498db
-        
-        # Load version info from .version file
+
         version_data = {
             "version": BOT_VERSION,
-            "codename": "Auto-Update & Enhanced GitHub",
-            "release_date": "2026-04-16",
+            "codename": "Full Customization & Restructure",
+            "release_date": "2026-04-17",
             "features": [
-                "Auto-Update System",
-                "Beautiful GitHub Notifications",
+                "Level System with Modals",
+                "Giveaway System",
+                "Code Verification",
+                "Enhanced Voice Channels",
+                "Advanced Moderation",
+                "Customizable Welcome",
                 "Economy System",
-                "Advanced Statistics",
-                "Enhanced Moderation",
-                "Utility Commands"
             ]
         }
-        
+
         try:
             import json
             with open(".version", "r", encoding="utf-8") as f:
                 version_data = json.load(f)
         except Exception as e:
             logger.warning(f"Could not load .version file: {e}")
-        
-        # Parse date
-        release_date = version_data.get("release_date", "2026-04-16")
+
+        release_date = version_data.get("release_date", "2026-04-17")
         try:
             date_obj = datetime.strptime(release_date, "%Y-%m-%d")
             formatted_date = date_obj.strftime("%B %d, %Y")
         except:
             formatted_date = release_date
-        
+
         embed = discord.Embed(
             title="🤖 Bot Version Information",
             description=f"**Alfheim Guide Bot**\nVersion `{version_data.get('version', BOT_VERSION)}`",
             color=discord.Color(color_int)
         )
-        
-        # Version details
+
         embed.add_field(
             name="📦 Release",
             value=f"Version: `{version_data.get('version', BOT_VERSION)}`\nCodename: `{version_data.get('codename', 'Unknown')}`\nDate: `{formatted_date}`",
             inline=False
         )
-        
-        # Features from .version file
+
         features = version_data.get("features", [])
         feature_emojis = {
-            "Auto-Update System": "🔄",
-            "Beautiful GitHub Notifications": "🎨",
+            "Level System with Modals": "📊",
+            "Giveaway System": "🎁",
+            "Code Verification": "🔐",
+            "Enhanced Voice Channels": "🎤",
+            "Advanced Moderation": "🛡️",
+            "Customizable Welcome": "👋",
             "Economy System": "💰",
-            "Advanced Statistics": "📊",
-            "Enhanced Moderation": "🛡️",
-            "Utility Commands": "🔧",
-            "Database Migration Tools": "🗄️"
+            "Auto-Update System": "🔄",
+            "GitHub Tracking": "🐙",
         }
-        
+
         features_text = "\n".join([
-            f"• {feature_emojis.get(f, '✨')} {f}" 
-            for f in features[:6]  # Show max 6 features
+            f"• {feature_emojis.get(f, '✨')} {f}"
+            for f in features[:8]
         ])
-        
+
         embed.add_field(
             name="✨ Key Features",
             value=features_text or "• Multiple features available",
             inline=False
         )
-        
-        # Stats
+
         embed.add_field(
             name="📊 Statistics",
-            value=f"• Commands: `50+`\n• Modules: `10+`\n• Languages: `RU/EN`",
+            value=f"• Commands: `60+`\n• Modules: `12+`\n• Languages: `RU/EN`",
             inline=True
         )
-        
-        # Links
+
         embed.add_field(
             name="🔗 Links",
             value="[GitHub](https://github.com/animesao/alfheimguide)\n[Discord](https://dsc.gg/alfheimguide)\n[Website](http://animesao.spcfy.eu/)",
             inline=True
         )
-        
+
         embed.set_footer(text=f"Alfheim Guide Bot v{version_data.get('version', BOT_VERSION)}")
         if interaction.client.user:
             embed.set_thumbnail(url=interaction.client.user.display_avatar.url)
-        
+
         await interaction.response.send_message(embed=embed)
     finally:
         session.close()
@@ -819,18 +838,16 @@ async def add_user_slash(interaction: discord.Interaction, github_username: str)
             return
 
         try:
-            github_user = g.get_user(github_username)
+            github_user = await asyncio.to_thread(g.get_user, github_username)
             username_to_store = github_user.login
         except:
-            search_results = g.search_users(github_username)
+            search_results = await asyncio.to_thread(g.search_users, github_username)
             if search_results.totalCount > 0:
                 github_user = search_results[0]
                 username_to_store = github_user.login
             else:
                 await interaction.followup.send(
-                    get_msg(
-                        interaction.guild.id, "user_not_found", username=github_username
-                    )
+                    get_msg(interaction.guild.id, "user_not_found", username=github_username)
                 )
                 return
 
@@ -852,7 +869,8 @@ async def add_user_slash(interaction: discord.Interaction, github_username: str)
         session.flush()
 
         repo_count = 0
-        for repo in github_user.get_repos():
+        repos = await asyncio.to_thread(list, github_user.get_repos())
+        for repo in repos:
             pushed_at = repo.pushed_at
             if pushed_at.tzinfo is None:
                 pushed_at = pushed_at.replace(tzinfo=timezone.utc)
@@ -866,12 +884,7 @@ async def add_user_slash(interaction: discord.Interaction, github_username: str)
 
         session.commit()
         await interaction.followup.send(
-            get_msg(
-                interaction.guild.id,
-                "tracking_started",
-                username=username_to_store,
-                count=repo_count,
-            )
+            get_msg(interaction.guild.id, "tracking_started", username=username_to_store, count=repo_count)
         )
     finally:
         session.close()
@@ -891,15 +904,11 @@ async def remove_user_slash(interaction: discord.Interaction, github_username: s
         )
         if not tracked_user:
             await interaction.response.send_message(
-                get_msg(
-                    interaction.guild.id, "user_not_tracked", username=github_username
-                )
+                get_msg(interaction.guild.id, "user_not_tracked", username=github_username)
             )
             return
 
-        # Delete all snapshots for this user
         session.query(RepoSnapshot).filter_by(tracked_user_id=tracked_user.id).delete()
-        # Delete the user
         session.delete(tracked_user)
         session.commit()
 
@@ -934,8 +943,11 @@ async def check_github_updates():
             msgs = MESSAGES.get(lang, MESSAGES["ru"])
 
             try:
-                github_user = g.get_user(user_record.github_username)
-                current_repos = {repo.name: repo for repo in github_user.get_repos()}
+                github_user = await asyncio.to_thread(
+                    g.get_user, user_record.github_username
+                )
+                repos = await asyncio.to_thread(list, github_user.get_repos())
+                current_repos = {repo.name: repo for repo in repos}
                 snapshots = {
                     s.repo_name: s
                     for s in session.query(RepoSnapshot)
@@ -943,7 +955,6 @@ async def check_github_updates():
                     .all()
                 }
 
-                # Check for deleted repos
                 for repo_name in list(snapshots.keys()):
                     if repo_name not in current_repos:
                         embed = discord.Embed(
@@ -965,17 +976,13 @@ async def check_github_updates():
                         session.delete(snapshots[repo_name])
                         session.commit()
 
-                # Check for new or updated repos
                 for repo_name, repo in current_repos.items():
                     snapshot = snapshots.get(repo_name)
-
                     repo_pushed_at = repo.pushed_at
                     if repo_pushed_at.tzinfo is None:
                         repo_pushed_at = repo_pushed_at.replace(tzinfo=timezone.utc)
 
-                    embed_color = (
-                        int(config.embed_color) if config.embed_color else 0x3498DB
-                    )
+                    embed_color = int(config.embed_color) if config.embed_color else 0x3498DB
                     embed = discord.Embed(color=discord.Color(embed_color))
                     embed.set_author(
                         name=github_user.login,
@@ -995,26 +1002,22 @@ async def check_github_updates():
                         session.add(new_snapshot)
                         session.commit()
 
-                        # Beautiful new repo notification
                         embed.title = "🚀 New Repository" if lang == "en" else "🚀 Новый репозиторий"
                         embed.description = f"### [{repo.name}]({repo.html_url})\n{repo.description or ('*No description provided*' if lang == 'en' else '*Описание отсутствует*')}"
                         embed.color = discord.Color.from_rgb(87, 242, 135)
                         embed.timestamp = datetime.now(timezone.utc)
-                        
-                        # Repository stats
+
                         stats_text = f"⭐ **{repo.stargazers_count:,}**  •  🍴 **{repo.forks_count:,}**  •  👁️ **{repo.watchers_count:,}**"
                         embed.add_field(name="📊 Stats" if lang == "en" else "📊 Статистика", value=stats_text, inline=False)
-                        
-                        # Repository info
+
                         info_lines = []
                         if repo.language:
                             info_lines.append(f"💻 **Language:** `{repo.language}`" if lang == "en" else f"💻 **Язык:** `{repo.language}`")
                         info_lines.append(f"🔓 **Visibility:** {'Public' if not repo.private else 'Private'}" if lang == "en" else f"🔓 **Видимость:** {'Публичный' if not repo.private else 'Приватный'}")
                         if repo.license:
                             info_lines.append(f"📜 **License:** {repo.license.name}" if lang == "en" else f"📜 **Лицензия:** {repo.license.name}")
-                        
+
                         embed.add_field(name="ℹ️ Info" if lang == "en" else "ℹ️ Информация", value="\n".join(info_lines), inline=False)
-                        
                         embed.set_author(
                             name=f"{github_user.login} • GitHub",
                             icon_url=github_user.avatar_url,
@@ -1024,92 +1027,51 @@ async def check_github_updates():
                             text="GitHub Tracker",
                             icon_url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
                         )
-                        
                         await channel.send(embed=embed)
 
-                    elif repo_pushed_at > snapshot.last_pushed_at.replace(
-                        tzinfo=timezone.utc
-                    ):
+                    elif repo_pushed_at > snapshot.last_pushed_at.replace(tzinfo=timezone.utc):
                         old_push = snapshot.last_pushed_at.replace(tzinfo=timezone.utc)
                         snapshot.last_pushed_at = repo_pushed_at
                         session.commit()
 
-                        # Beautiful update notification
                         embed.title = "📝 Repository Update" if lang == "en" else "📝 Обновление репозитория"
                         embed.description = f"### [{repo.name}]({repo.html_url})\n{repo.description or ('*No description*' if lang == 'en' else '*Без описания*')}"
                         embed.color = discord.Color.from_rgb(88, 166, 255)
                         embed.timestamp = repo_pushed_at
 
                         try:
-                            commits = repo.get_commits(since=old_push)
+                            commits = await asyncio.to_thread(list, repo.get_commits(since=old_push))
                             commit_list = []
-                            all_files = set()
-                            total_additions = 0
-                            total_deletions = 0
                             commit_count = 0
 
                             for c in commits:
-                                if (
-                                    c.commit.author.date.replace(tzinfo=timezone.utc)
-                                    > old_push
-                                ):
+                                if c.commit.author.date.replace(tzinfo=timezone.utc) > old_push:
                                     commit_count += 1
                                     msg = c.commit.message.split("\n")[0]
-                                    # Truncate long commit messages
                                     if len(msg) > 60:
                                         msg = msg[:57] + "..."
                                     commit_list.append(
                                         f"[`{c.sha[:7]}`]({c.html_url}) {msg}"
                                     )
-                                    commit_data = repo.get_commit(c.sha)
-                                    total_additions += commit_data.stats.additions
-                                    total_deletions += commit_data.stats.deletions
-                                    for f in commit_data.files:
-                                        status_emoji = (
-                                            "🟢"
-                                            if f.status == "added"
-                                            else "🟡"
-                                            if f.status == "modified"
-                                            else "🔴"
-                                        )
-                                        all_files.add(f"{status_emoji} `{f.filename}`")
 
                             if commit_list:
-                                # Branch and stats in one line
-                                branch_stats = f"🌿 `{repo.default_branch}`  •  📊 **+{total_additions:,}** / **-{total_deletions:,}**  •  📝 **{commit_count}** commit{'s' if commit_count != 1 else ''}"
+                                branch_stats = f"🌿 `{repo.default_branch}`  •  📝 **{commit_count}** commit{'s' if commit_count != 1 else ''}"
                                 embed.add_field(
                                     name="📌 Details" if lang == "en" else "📌 Детали",
                                     value=branch_stats,
                                     inline=False,
                                 )
-                                
-                                # Commits (show max 5)
+
                                 commits_to_show = commit_list[:5]
                                 commits_text = "\n".join(commits_to_show)
                                 if len(commit_list) > 5:
                                     commits_text += f"\n*...and {len(commit_list) - 5} more commit(s)*" if lang == "en" else f"\n*...и ещё {len(commit_list) - 5} коммит(ов)*"
-                                
+
                                 embed.add_field(
                                     name=f"💬 Commits ({min(5, len(commit_list))})" if lang == "en" else f"💬 Коммиты ({min(5, len(commit_list))})",
                                     value=commits_text,
                                     inline=False,
                                 )
-                                
-                                # Changed files (show max 8)
-                                if all_files:
-                                    sorted_files = sorted(
-                                        list(all_files),
-                                        key=lambda x: (x[0] != "🟢", x[0] != "🟡", x),
-                                    )
-                                    files_to_show = sorted_files[:8]
-                                    files_text = "\n".join(files_to_show)
-                                    if len(all_files) > 8:
-                                        files_text += f"\n*...and {len(all_files) - 8} more file(s)*" if lang == "en" else f"\n*...и ещё {len(all_files) - 8} файл(ов)*"
-                                    embed.add_field(
-                                        name=f"📁 Changed Files ({len(all_files)})" if lang == "en" else f"📁 Изменённые файлы ({len(all_files)})",
-                                        value=files_text,
-                                        inline=False,
-                                    )
 
                                 embed.set_author(
                                     name=f"{github_user.login} • GitHub",
@@ -1120,144 +1082,106 @@ async def check_github_updates():
                                     text="GitHub Tracker",
                                     icon_url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
                                 )
-
                                 await channel.send(embed=embed)
                         except Exception as e:
                             logger.error(f"Error fetching commits for {repo.name}: {e}")
-                
-                # Check for new releases
-                try:
-                    releases = list(repo.get_releases())
-                    if not releases:
-                        # No releases in this repository, skip
-                        continue
-                        
-                    release_snapshots = {
-                        r.release_tag: r
-                        for r in session.query(ReleaseSnapshot)
-                        .filter_by(tracked_user_id=user_record.id, repo_name=repo.name)
-                        .all()
-                    }
-                    
-                    # Check last 5 releases (or fewer if less available)
-                    releases_to_check = releases[:min(5, len(releases))]
-                    
-                    for release in releases_to_check:
-                        if release.tag_name not in release_snapshots:
-                            # New release found!
-                            published_at = release.published_at
-                            if published_at.tzinfo is None:
-                                published_at = published_at.replace(tzinfo=timezone.utc)
-                            
-                            # Save to database
-                            new_release = ReleaseSnapshot(
-                                tracked_user_id=user_record.id,
-                                repo_name=repo.name,
-                                release_tag=release.tag_name,
-                                release_name=release.name,
-                                published_at=published_at,
-                                is_prerelease=release.prerelease,
-                                is_draft=release.draft
-                            )
-                            session.add(new_release)
-                            session.commit()
-                            
-                            # Don't notify about drafts
-                            if release.draft:
-                                continue
-                            
-                            # Beautiful release notification
-                            if release.prerelease:
-                                embed_color = discord.Color.from_rgb(255, 191, 0)  # Orange for pre-release
-                                title = "🔶 Pre-Release" if lang == "en" else "🔶 Пре-релиз"
-                            else:
-                                embed_color = discord.Color.from_rgb(46, 204, 113)  # Green for stable release
-                                title = "🎉 New Release" if lang == "en" else "🎉 Новый релиз"
-                            
-                            embed = discord.Embed(
-                                title=title,
-                                description=f"### [{repo.name}]({repo.html_url}) `{release.tag_name}`\n**{release.name or release.tag_name}**",
-                                color=embed_color,
-                                timestamp=published_at
-                            )
-                            
-                            # Release info
-                            info_lines = []
-                            info_lines.append(f"🏷️ **Tag:** `{release.tag_name}`")
-                            if release.target_commitish:
-                                info_lines.append(f"🌿 **Branch:** `{release.target_commitish}`")
-                            
-                            # Author info
-                            if release.author:
-                                info_lines.append(f"👤 **Author:** [{release.author.login}]({release.author.html_url})")
-                            
-                            embed.add_field(
-                                name="ℹ️ Info" if lang == "en" else "ℹ️ Информация",
-                                value="\n".join(info_lines),
-                                inline=False
-                            )
-                            
-                            # Release notes (truncated)
-                            if release.body:
-                                body_lines = release.body.split("\n")
-                                # Take first 10 lines or 500 chars
-                                body_preview = "\n".join(body_lines[:10])
-                                if len(body_preview) > 500:
-                                    body_preview = body_preview[:497] + "..."
-                                elif len(body_lines) > 10:
-                                    body_preview += f"\n\n*...and {len(body_lines) - 10} more lines*" if lang == "en" else f"\n\n*...и ещё {len(body_lines) - 10} строк*"
-                                
-                                embed.add_field(
-                                    name="📝 Release Notes" if lang == "en" else "📝 Заметки о релизе",
-                                    value=body_preview or ("*No release notes*" if lang == "en" else "*Нет заметок*"),
-                                    inline=False
+
+                for repo_name, repo in current_repos.items():
+                    try:
+                        releases = await asyncio.to_thread(list, repo.get_releases())
+                        if not releases:
+                            continue
+
+                        release_snapshots = {
+                            r.release_tag: r
+                            for r in session.query(ReleaseSnapshot)
+                            .filter_by(tracked_user_id=user_record.id, repo_name=repo.name)
+                            .all()
+                        }
+
+                        for release in releases[:5]:
+                            if release.tag_name not in release_snapshots:
+                                published_at = release.published_at
+                                if published_at.tzinfo is None:
+                                    published_at = published_at.replace(tzinfo=timezone.utc)
+
+                                new_release = ReleaseSnapshot(
+                                    tracked_user_id=user_record.id,
+                                    repo_name=repo.name,
+                                    release_tag=release.tag_name,
+                                    release_name=release.name,
+                                    published_at=published_at,
+                                    is_prerelease=release.prerelease,
+                                    is_draft=release.draft,
                                 )
-                            
-                            # Assets
-                            if release.get_assets().totalCount > 0:
-                                assets = list(release.get_assets()[:5])
-                                asset_lines = []
-                                for asset in assets:
-                                    size_mb = asset.size / (1024 * 1024)
-                                    asset_lines.append(f"📦 [{asset.name}]({asset.browser_download_url}) ({size_mb:.1f} MB)")
-                                
-                                if release.get_assets().totalCount > 5:
-                                    asset_lines.append(f"*...and {release.get_assets().totalCount - 5} more*" if lang == "en" else f"*...и ещё {release.get_assets().totalCount - 5}*")
-                                
-                                embed.add_field(
-                                    name=f"📦 Assets ({release.get_assets().totalCount})" if lang == "en" else f"📦 Файлы ({release.get_assets().totalCount})",
-                                    value="\n".join(asset_lines),
-                                    inline=False
+                                session.add(new_release)
+                                session.commit()
+
+                                if release.draft:
+                                    continue
+
+                                if release.prerelease:
+                                    embed_color_rel = discord.Color.from_rgb(255, 191, 0)
+                                    title = "🔶 Pre-Release" if lang == "en" else "🔶 Пре-релиз"
+                                else:
+                                    embed_color_rel = discord.Color.from_rgb(46, 204, 113)
+                                    title = "🎉 New Release" if lang == "en" else "🎉 Новый релиз"
+
+                                embed = discord.Embed(
+                                    title=title,
+                                    description=f"### [{repo.name}]({repo.html_url}) `{release.tag_name}`\n**{release.name or release.tag_name}**",
+                                    color=embed_color_rel,
+                                    timestamp=published_at,
                                 )
-                            
-                            # Links
-                            links = f"[🔗 Release Page]({release.html_url})"
-                            if release.zipball_url:
-                                links += f" • [📥 ZIP]({release.zipball_url})"
-                            if release.tarball_url:
-                                links += f" • [📥 TAR]({release.tarball_url})"
-                            
-                            embed.add_field(
-                                name="🔗 Links" if lang == "en" else "🔗 Ссылки",
-                                value=links,
-                                inline=False
-                            )
-                            
-                            embed.set_author(
-                                name=f"{github_user.login} • GitHub",
-                                icon_url=github_user.avatar_url,
-                                url=github_user.html_url
-                            )
-                            embed.set_footer(
-                                text="GitHub Tracker • Release",
-                                icon_url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-                            )
-                            
-                            await channel.send(embed=embed)
-                            
-                except Exception as e:
-                    logger.error(f"Error checking releases for {repo.name}: {e}")
-                    
+
+                                info_lines = []
+                                info_lines.append(f"🏷️ **Tag:** `{release.tag_name}`")
+                                if release.target_commitish:
+                                    info_lines.append(f"🌿 **Branch:** `{release.target_commitish}`")
+                                if release.author:
+                                    info_lines.append(f"👤 **Author:** [{release.author.login}]({release.author.html_url})")
+
+                                embed.add_field(
+                                    name="ℹ️ Info" if lang == "en" else "ℹ️ Информация",
+                                    value="\n".join(info_lines),
+                                    inline=False,
+                                )
+
+                                if release.body:
+                                    body_lines = release.body.split("\n")
+                                    body_preview = "\n".join(body_lines[:10])
+                                    if len(body_preview) > 500:
+                                        body_preview = body_preview[:497] + "..."
+                                    elif len(body_lines) > 10:
+                                        body_preview += f"\n\n*...and {len(body_lines) - 10} more lines*" if lang == "en" else f"\n\n*...и ещё {len(body_lines) - 10} строк*"
+
+                                    embed.add_field(
+                                        name="📝 Release Notes" if lang == "en" else "📝 Заметки о релизе",
+                                        value=body_preview or ("*No release notes*" if lang == "en" else "*Нет заметок*"),
+                                        inline=False,
+                                    )
+
+                                links = f"[🔗 Release Page]({release.html_url})"
+                                embed.add_field(
+                                    name="🔗 Links" if lang == "en" else "🔗 Ссылки",
+                                    value=links,
+                                    inline=False,
+                                )
+
+                                embed.set_author(
+                                    name=f"{github_user.login} • GitHub",
+                                    icon_url=github_user.avatar_url,
+                                    url=github_user.html_url,
+                                )
+                                embed.set_footer(
+                                    text="GitHub Tracker • Release",
+                                    icon_url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+                                )
+                                await channel.send(embed=embed)
+
+                    except Exception as e:
+                        logger.error(f"Error checking releases for {repo.name}: {e}")
+
             except Exception as e:
                 logger.error(f"Error checking {user_record.github_username}: {e}")
     finally:

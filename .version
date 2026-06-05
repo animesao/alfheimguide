@@ -1,19 +1,19 @@
 {
-  "version": "2026.4.17",
-  "release_date": "2026-04-17",
-  "codename": "Release Tracking",
+  "version": "2026.6.5",
+  "release_date": "2026-06-05",
+  "codename": "Hotfix & Polish",
   "major": 2026,
-  "minor": 4,
-  "patch": 17,
+  "minor": 6,
+  "patch": 5,
   "build": "stable",
   "changelog": "CHANGELOG.md",
   "features": [
-    "GitHub Release Tracking",
-    "Auto-Update System",
-    "Beautiful GitHub Notifications",
-    "Economy System",
-    "Advanced Statistics",
-    "Enhanced Moderation",
-    "Utility Commands"
+    "Level System with Modals",
+    "Giveaway System",
+    "Code Verification",
+    "Enhanced Voice Channels",
+    "Advanced Moderation",
+    "Customizable Welcome",
+    "Economy System"
   ]
 }

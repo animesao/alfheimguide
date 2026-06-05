@@ -5,7 +5,100 @@ All notable changes to Alfheim Guide Bot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.6.5] - 2026-06-05
+
+### 🔧 Hotfix & Polish
+- **Removed broken `ai.chat` loading** from main.py (module didn't exist)
+- **Fixed persistent views** for Verification and Tickets
+  - `VerificationView` now registered per-guild from DB at startup
+  - `TicketPersistentView` loads actual categories from DB instead of empty lists
+  - Removed duplicate empty view registrations from `tickets.py`
+- **Optimized `advanced_moderation.py`**:
+  - `on_message` no longer logs every message to DB — only if `log_channel_id` is set
+  - Anti-spam uses in-memory config cache instead of DB query per message
+  - `on_message_delete`/`on_message_edit`/`on_member_join` use cached `GuildConfig`
+  - Added `/refresh_cache` command and `invalidate_cache()` method
+- **Fixed `games.py` Minesweeper**:
+  - `pop(0)` → `deque.popleft()` in flood fill (O(1) instead of O(n))
+  - Added seen-set to prevent redundant cell visits
+  - Removed dead right-click code (discord.py buttons don't support it)
+  - Added dedicated `🚩 Flag` button for toggling flag mode
+  - Fixed number display emojis with proper `NUM_EMOJIS` mapping
+- **Fixed crash in main.py `on_ready`** — `session` variable was undefined when querying verification/ticket configs
+- **Updated bot version to 2026.4.18**
+
 ## [2026.4.17] - 2026-04-17
+
+### 🏗️ Major Restructure & Full Customization
+
+### ✨ New Systems
+- 📊 **Level System with Modals**: Complete `/level_config` with interactive setup
+  - `LevelConfigModal` for basic settings (enabled, base XP, multiplier, cooldown)
+  - `LevelRewardModal` for adding role rewards at specific levels
+  - `LevelConfigView` with dropdown navigation (settings, rewards, status)
+  - XP per message + XP per voice minute tracking
+  - Stackable role rewards, level-up announcements
+- 🎁 **Giveaway System**: Full giveaway management with modal creation
+  - `GiveawayCreateModal` with prize, description, winners, duration, requirements
+  - Role-level requirements, image URL support
+  - Auto-end task checks every 30s
+  - Reroll, force-end, list commands
+- 🔐 **Code-Based Verification**: `/verify_code_setup`, `/verify_code`, `/verify_code_enter`
+  - Code sent to DM, expires after configurable time
+  - `VerificationCode` model with expiry tracking
+- 🎤 **Voice Channels Panel**: Full voice control interface
+  - Lock/unlock, hide/show, rename, user limit, bitrate
+  - Invite/kick/ban users from voice, transfer ownership
+  - Auto-delete empty temporary voice channels
+- 👋 **Customizable Welcome System**: `/welcome_setup` with modal
+  - Channel, title, message, footer, image, DM toggle, auto-role
+  - Clean join/leave embeds with configurable colors
+
+### 🔧 Moderation Overhaul
+- **Unified `/moderation` commands**: All moderation in one cog
+  - `/kick`, `/ban`, `/unban`, `/mute`, `/unmute`, `/warn`, `/clear`
+  - `/tempban` with duration parsing, `/automod_setup` with choices
+  - All support DM, log, silent flags, delete-message-days
+  - AutoMod config with bad words filter, link blocking, caps protection
+- **Advanced Moderation**: Complete rewrite of `advanced_moderation.py`
+  - Message logging (deleted/edited events)
+  - Spam detection with auto-mute
+  - Raid protection with kick/ban action
+  - Report system with resolve workflow
+  - Slowmode, massban, masskick commands
+  - Warning history viewer
+
+### 📊 Statistics Rewrite
+- **Graph-based statistics**: ASCII bar graphs for activity
+- `/topmembers` with timeframe filter (day/week/month/all)
+- `/channelstats` showing top channels by activity
+- `/serverstats` with comprehensive server metrics
+- `/userstats` with voice + message stats
+- `/activity_graph` with daily/weekly bars
+- Auto-save task for periodic stats snapshots
+
+### 🐛 Critical Fixes
+- **Fixed `/anime` command**: Multiple API fallback chain (waifu.pics → nekos.life)
+  - Proper `aiohttp.ClientSession` reuse
+  - Timeout handling and graceful degradation
+- **Fixed `main.py` issues**:
+  - `target_channel_id` / `mod_log_channel_id` / `log_channel_id` now tracked separately
+  - GitHub API calls wrapped in `asyncio.to_thread` with rate-limit retry
+  - Release tracking loop logic fixed (drafts skipped)
+  - N+1 query problem fixed with batch commit fetching
+  - `get_msg` cached via `@lru_cache` per guild, cleared on language change
+- **Added missing `unbanned_auto` message keys** for tempban expiration
+
+### 🗄️ Database
+- New models: `LevelConfig`, `Giveaway`, `GiveawayEntry`, `AutoModConfig`, `VerificationCode`
+- Extended `GuildConfig` with `mod_log_channel_id`, welcome/leave fields, auto_role_id
+- Extended `UserLevel` with `voice_xp`, `last_voice_update` for voice XP tracking
+- Extended `UserEconomy` with `last_work` for work cooldown
+- New `MessageLog` model for deleted/edited message tracking
+- New `RaidProtection` and `SuspiciousJoin` models for raid detection
+- New `Report` model for report system with resolved status
+- New `Poll` and `PollVote` models for polls
+- New `TicketCategory` model with configurable modal fields
 
 ### ✨ Added
 - 🎉 **GitHub Release Tracking**: Automatic monitoring of repository releases

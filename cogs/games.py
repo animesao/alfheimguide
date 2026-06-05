@@ -2,14 +2,16 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import random
-from typing import Optional, Dict, List, Tuple
+from collections import deque
+from typing import Optional, Dict, Tuple
 from database import SessionLocal, GuildConfig
+
+NUM_EMOJIS = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"]
 
 class MinesweeperGame:
     def __init__(self, size: int = 5, mines: int = 5):
         self.size = size
         self.mines = mines
-        self.grid = [[' ' for _ in range(size)] for _ in range(size)]
         self.revealed = [[False for _ in range(size)] for _ in range(size)]
         self.flagged = [[False for _ in range(size)] for _ in range(size)]
         self.mine_positions = set()
@@ -17,7 +19,6 @@ class MinesweeperGame:
         self.won = False
         self.first_move = True
 
-        # Place mines randomly
         positions = [(i, j) for i in range(size) for j in range(size)]
         self.mine_positions = set(random.sample(positions, mines))
 
@@ -26,9 +27,7 @@ class MinesweeperGame:
             return False
 
         if self.first_move:
-            # Ensure first click is safe
             if (x, y) in self.mine_positions:
-                # Move mine to another position
                 self.mine_positions.remove((x, y))
                 new_pos = random.choice([(i, j) for i in range(self.size) for j in range(self.size)
                                        if (i, j) not in self.mine_positions and (i, j) != (x, y)])
@@ -37,15 +36,12 @@ class MinesweeperGame:
 
         if (x, y) in self.mine_positions:
             self.game_over = True
-            # Reveal all mines
             for mx, my in self.mine_positions:
                 self.revealed[my][mx] = True
             return True
 
-        self.revealed[y][x] = True
         self._flood_fill(x, y)
 
-        # Check win condition
         total_cells = self.size * self.size
         revealed_count = sum(sum(row) for row in self.revealed)
         if revealed_count == total_cells - self.mines:
@@ -61,16 +57,16 @@ class MinesweeperGame:
         return True
 
     def _flood_fill(self, x: int, y: int):
-        queue = [(x, y)]
+        queue = deque([(x, y)])
+        seen = set()
         while queue:
-            cx, cy = queue.pop(0)
-            if not (0 <= cx < self.size and 0 <= cy < self.size) or self.revealed[cy][cx]:
+            cx, cy = queue.popleft()
+            if (cx, cy) in seen or not (0 <= cx < self.size and 0 <= cy < self.size) or self.revealed[cy][cx]:
                 continue
-
-            mine_count = self._count_adjacent_mines(cx, cy)
-            self.grid[cy][cx] = str(mine_count) if mine_count > 0 else '0'
+            seen.add((cx, cy))
             self.revealed[cy][cx] = True
 
+            mine_count = self._count_adjacent_mines(cx, cy)
             if mine_count == 0:
                 for dx in [-1, 0, 1]:
                     for dy in [-1, 0, 1]:
@@ -79,6 +75,8 @@ class MinesweeperGame:
                         nx, ny = cx + dx, cy + dy
                         if 0 <= nx < self.size and 0 <= ny < self.size and not self.revealed[ny][nx]:
                             queue.append((nx, ny))
+            elif mine_count > 0:
+                pass  # cell revealed with count
 
     def _count_adjacent_mines(self, x: int, y: int) -> int:
         count = 0
@@ -101,18 +99,18 @@ class MinesweeperGame:
                     display += "⬛"
                 elif (x, y) in self.mine_positions:
                     display += "💣"
-                elif self.grid[y][x] == '0':
-                    display += "⬜"
                 else:
-                    display += f"{self.grid[y][x]}️⃣"
+                    cnt = self._count_adjacent_mines(x, y)
+                    display += NUM_EMOJIS[cnt]
             display += "\n"
         return display.strip()
+
 
 class SnakeGame:
     def __init__(self, size: int = 5):
         self.size = size
         self.snake = [(size//2, size//2)]
-        self.direction = (0, -1)  # Up
+        self.direction = (0, -1)
         self.food = self._generate_food()
         self.game_over = False
         self.score = 0
@@ -121,7 +119,6 @@ class SnakeGame:
         if self.game_over:
             return False
 
-        # Prevent reverse direction
         if (new_direction[0] * -1, new_direction[1] * -1) == self.direction:
             return False
 
@@ -130,12 +127,10 @@ class SnakeGame:
         dx, dy = self.direction
         new_head = (head_x + dx, head_y + dy)
 
-        # Check boundaries
         if not (0 <= new_head[0] < self.size and 0 <= new_head[1] < self.size):
             self.game_over = True
             return True
 
-        # Check self collision
         if new_head in self.snake:
             self.game_over = True
             return True
@@ -167,10 +162,11 @@ class SnakeGame:
             display += "\n"
         return display.strip()
 
+
 class Games(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.active_games: Dict[str, dict] = {}  # user_id: {'type': 'minesweeper'/'snake', 'game': game_obj, 'message': message}
+        self.active_games: Dict[str, dict] = {}
 
     def get_msg(self, guild_id: int, key: str, **kwargs) -> str:
         session = SessionLocal()
@@ -209,7 +205,6 @@ class Games(commands.Cog):
         view = MinesweeperView(game, self, user_key)
         await interaction.response.send_message(embed=embed, view=view)
 
-        # Store game state
         message = await interaction.original_response()
         self.active_games[user_key] = {'type': 'minesweeper', 'game': game, 'message': message}
 
@@ -233,7 +228,6 @@ class Games(commands.Cog):
         view = SnakeView(game, self, user_key)
         await interaction.response.send_message(embed=embed, view=view)
 
-        # Store game state
         message = await interaction.original_response()
         self.active_games[user_key] = {'type': 'snake', 'game': game, 'message': message}
 
@@ -241,24 +235,28 @@ class Games(commands.Cog):
         if user_key in self.active_games:
             del self.active_games[user_key]
 
+
 class MinesweeperView(discord.ui.View):
     def __init__(self, game: MinesweeperGame, cog: Games, user_key: str):
         super().__init__(timeout=300)
         self.game = game
         self.cog = cog
         self.user_key = user_key
+        self.flag_mode = False
 
-        # Create 5x5 grid of buttons
         for y in range(5):
             for x in range(5):
                 button = MinesweeperButton(x, y, game)
                 self.add_item(button)
+
+        self.add_item(MinesweeperFlagButton())
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         return f"{interaction.user.id}_{interaction.guild.id}" == self.user_key
 
     async def on_timeout(self):
         self.cog.end_game(self.user_key)
+
 
 class MinesweeperButton(discord.ui.Button):
     def __init__(self, x: int, y: int, game: MinesweeperGame):
@@ -268,27 +266,41 @@ class MinesweeperButton(discord.ui.Button):
         self.game = game
 
     async def callback(self, interaction: discord.Interaction):
-        # Left click - reveal
-        if interaction.data.get('component_type') == 2:  # Button
+        view = self.view
+        if view.flag_mode:
+            self.game.flag(self.x, self.y)
+        else:
             self.game.reveal(self.x, self.y)
 
-        # Update display
         embed = interaction.message.embeds[0]
         embed.description = self.game.get_display()
 
         if self.game.game_over:
             if self.game.won:
-                embed.title = self.cog.get_msg(interaction.guild.id, 'minesweeper_won')
+                embed.title = view.cog.get_msg(interaction.guild.id, 'minesweeper_won')
                 embed.color = discord.Color.green()
             else:
-                embed.title = self.cog.get_msg(interaction.guild.id, 'minesweeper_lost')
+                embed.title = view.cog.get_msg(interaction.guild.id, 'minesweeper_lost')
                 embed.color = discord.Color.red()
-            self.view.stop()
-            self.cog.end_game(self.view.user_key)
+            view.stop()
+            view.cog.end_game(view.user_key)
         else:
-            embed.title = self.cog.get_msg(interaction.guild.id, 'minesweeper_title')
+            embed.title = view.cog.get_msg(interaction.guild.id, 'minesweeper_title')
 
-        await interaction.response.edit_message(embed=embed, view=self.view)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class MinesweeperFlagButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(style=discord.ButtonStyle.gray, label="🚩 Flag", row=4)
+
+    async def callback(self, interaction: discord.Interaction):
+        view = self.view
+        view.flag_mode = not view.flag_mode
+        self.style = discord.ButtonStyle.primary if view.flag_mode else discord.ButtonStyle.gray
+        self.label = "🚩 Flag (ON)" if view.flag_mode else "🚩 Flag"
+        await interaction.response.edit_message(view=view)
+
 
 class SnakeView(discord.ui.View):
     def __init__(self, game: SnakeGame, cog: Games, user_key: str):
@@ -334,6 +346,7 @@ class SnakeView(discord.ui.View):
             embed.title = self.cog.get_msg(interaction.guild.id, 'snake_title')
 
         await interaction.response.edit_message(embed=embed, view=self)
+
 
 async def setup(bot):
     await bot.add_cog(Games(bot))

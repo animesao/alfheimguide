@@ -1,9 +1,11 @@
 import discord
 import uuid
 import datetime
+import random
+import string
 from discord.ext import commands
 from discord import app_commands, ui
-from database import SessionLocal, VerificationConfig, VerificationButton
+from database import SessionLocal, VerificationConfig, VerificationButton, VerificationCode
 from typing import Optional, List
 
 
@@ -1685,3 +1687,121 @@ class Verification(commands.Cog):
         for action, desc in ACTION_TYPES.items():
             embed.add_field(name=f"`{action}`", value=desc, inline=True)
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    # === CODE VERIFICATION ===
+
+    @app_commands.command(name="verify_code_setup", description="Настроить верификацию по коду в ЛС")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def verify_code_setup(self, interaction: discord.Interaction,
+                                enabled: bool = True,
+                                code_length: int = 6,
+                                dm_message: str = "Ваш код верификации: {code}",
+                                verified_role: discord.Role = None):
+        session = SessionLocal()
+        try:
+            config = session.query(VerificationConfig).filter_by(guild_id=interaction.guild_id).first()
+            if not config:
+                config = VerificationConfig(guild_id=interaction.guild_id)
+                session.add(config)
+            config.code_verification_enabled = enabled
+            config.code_length = max(4, min(20, code_length))
+            config.dm_verification_message = dm_message
+            if verified_role:
+                config.verified_role_id = verified_role.id
+            session.commit()
+            await interaction.response.send_message(
+                f"✅ Кодовая верификация {'**включена**' if enabled else '**выключена**'}!\n"
+                f"Длина кода: {config.code_length}\n"
+                f"Роль: {verified_role.mention if verified_role else 'не указана'}",
+                ephemeral=True
+            )
+        finally:
+            session.close()
+
+    @app_commands.command(name="verify_code", description="Отправить код верификации в ЛС")
+    async def verify_code(self, interaction: discord.Interaction):
+        if not interaction.guild:
+            return
+        session = SessionLocal()
+        try:
+            config = session.query(VerificationConfig).filter_by(
+                guild_id=interaction.guild_id, enabled=True, code_verification_enabled=True
+            ).first()
+            if not config:
+                await interaction.response.send_message("❌ Кодовая верификация не настроена!", ephemeral=True)
+                return
+
+            existing = session.query(VerificationCode).filter_by(
+                guild_id=interaction.guild_id, user_id=interaction.user.id, used=False
+            ).first()
+
+            import string
+            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=config.code_length))
+
+            if existing:
+                existing.code = code
+                existing.created_at = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            else:
+                vc = VerificationCode(
+                    guild_id=interaction.guild_id,
+                    user_id=interaction.user.id,
+                    code=code,
+                    expires_at=datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) + datetime.timedelta(minutes=10),
+                )
+                session.add(vc)
+            session.commit()
+
+            dm_text = config.dm_verification_message or "Ваш код верификации: {code}"
+            dm_text = dm_text.replace("{code}", code).replace("{server}", interaction.guild.name)
+
+            try:
+                await interaction.user.send(f"🔐 **Код верификации для {interaction.guild.name}**\n\n{dm_text}\n\nКод действителен 10 минут.")
+                await interaction.response.send_message("✅ Код отправлен в ЛС! Проверьте сообщения.", ephemeral=True)
+            except discord.Forbidden:
+                await interaction.response.send_message("❌ Не удалось отправить ЛС! Откройте ЛС на сервере.", ephemeral=True)
+        finally:
+            session.close()
+
+    @app_commands.command(name="verify_code_enter", description="Ввести код верификации из ЛС")
+    async def verify_code_enter(self, interaction: discord.Interaction, code: str):
+        if not interaction.guild:
+            return
+        session = SessionLocal()
+        try:
+            config = session.query(VerificationConfig).filter_by(
+                guild_id=interaction.guild_id, enabled=True, code_verification_enabled=True
+            ).first()
+            if not config:
+                await interaction.response.send_message("❌ Кодовая верификация не настроена!", ephemeral=True)
+                return
+
+            vc = session.query(VerificationCode).filter_by(
+                guild_id=interaction.guild_id, user_id=interaction.user.id,
+                code=code.upper(), used=False
+            ).first()
+
+            if not vc:
+                await interaction.response.send_message("❌ Неверный код! Попробуйте `/verify_code` для получения нового.", ephemeral=True)
+                return
+
+            now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            if vc.expires_at and vc.expires_at < now:
+                await interaction.response.send_message("❌ Код истёк! Используйте `/verify_code` для нового.", ephemeral=True)
+                session.delete(vc)
+                session.commit()
+                return
+
+            vc.used = True
+
+            if config.verified_role_id:
+                role = interaction.guild.get_role(int(config.verified_role_id))
+                if role and role not in interaction.user.roles:
+                    try:
+                        await interaction.user.add_roles(role)
+                    except:
+                        pass
+
+            session.commit()
+            await interaction.response.send_message("✅ Верификация пройдена! Добро пожаловать на сервер!", ephemeral=True)
+        finally:
+            session.close()

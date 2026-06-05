@@ -190,8 +190,6 @@ class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.bot.add_view(TicketControlView())
-        self.bot.add_view(TicketPersistentView([], "dropdown"))
-        self.bot.add_view(TicketPersistentView([], "buttons"))
 
     @app_commands.command(name="ticket_setup", description="Настроить систему тикетов")
     @app_commands.checks.has_permissions(administrator=True)
