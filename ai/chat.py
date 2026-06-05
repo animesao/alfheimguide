@@ -122,6 +122,3 @@ class AIChat(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(AIChat(bot))
-
-async def setup(bot):
-    await bot.add_cog(AIChat(bot))

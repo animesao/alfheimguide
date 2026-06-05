@@ -107,7 +107,8 @@ class Anime(commands.Cog):
                     "❌ Не удалось получить изображение. Попробуйте позже."
                 )
         except Exception as e:
-            await interaction.followup.send(f"❌ Ошибка: {str(e)}")
+            err_msg = str(e)[:200]
+            await interaction.followup.send(f"❌ Ошибка: {err_msg}")
         finally:
             session.close()
 

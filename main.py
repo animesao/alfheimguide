@@ -351,21 +351,21 @@ async def on_ready():
     from cogs.verifications.verification import VerificationView
     from database import VerificationConfig, TicketCategory
 
-    s = SessionLocal()
+    session = SessionLocal()
     try:
-        ticket_guilds = s.query(TicketCategory.guild_id).distinct().all()
+        ticket_guilds = session.query(TicketCategory.guild_id).distinct().all()
         for (tgid,) in ticket_guilds:
-            cats = s.query(TicketCategory.name).filter_by(guild_id=tgid).all()
+            cats = session.query(TicketCategory.name).filter_by(guild_id=tgid).all()
             cat_names = [c[0] for c in cats]
             mode = "dropdown"
             color = 0x2ecc71
             bot.add_view(TicketPersistentView(cat_names, mode, color))
 
-        vconfigs = s.query(VerificationConfig).all()
+        vconfigs = session.query(VerificationConfig).all()
         for vc in vconfigs:
             bot.add_view(VerificationView(vc.guild_id, "buttons"))
     finally:
-        s.close()
+        session.close()
 
     if not check_temp_bans.is_running():
         check_temp_bans.start()
@@ -541,7 +541,6 @@ async def set_lang_slash(
         config.language = language.value
         session.commit()
         invalidate_lang_cache(interaction.guild.id)
-        _get_cached_lang.cache_clear()
         await interaction.response.send_message(
             get_msg(interaction.guild.id, "lang_updated")
         )
@@ -742,21 +741,6 @@ async def version_slash(interaction: discord.Interaction):
     try:
         config = session.query(GuildConfig).filter_by(guild_id=interaction.guild.id).first()
         color_int = int(config.embed_color) if config and config.embed_color else 0x3498db
-
-        version_data = {
-            "version": BOT_VERSION,
-            "codename": "Full Customization & Restructure",
-            "release_date": "2026-04-17",
-            "features": [
-                "Level System with Modals",
-                "Giveaway System",
-                "Code Verification",
-                "Enhanced Voice Channels",
-                "Advanced Moderation",
-                "Customizable Welcome",
-                "Economy System",
-            ]
-        }
 
         try:
             import json

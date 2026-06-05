@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 from sqlalchemy import (
     create_engine, Column, Integer, String, DateTime, ForeignKey,
-    BigInteger, Boolean, Text, Float, JSON, event, inspect,
+    BigInteger, Boolean, Text, Float, JSON, event, inspect, text,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
@@ -442,11 +442,10 @@ def _migrate_schema():
                     elif isinstance(column.default.arg, (int, float)):
                         default = f" DEFAULT {column.default.arg}"
                 try:
-                    with engine.connect() as conn:
+                    with engine.begin() as conn:
                         conn.execute(
-                            f"ALTER TABLE {table_name} ADD COLUMN {column.name} {col_type} {nullable}{default}"
+                            text(f"ALTER TABLE {table_name} ADD COLUMN {column.name} {col_type} {nullable}{default}")
                         )
-                        conn.commit()
                     print(f"[migration] Added column {table_name}.{column.name}")
                 except Exception as e:
                     print(f"[migration] Skipped {table_name}.{column.name}: {e}")

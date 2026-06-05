@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2026.6.5] - 2026-06-05
 
+### 🐛 Critical Fix
+- **Fixed `_migrate_schema()` — ALTER TABLE never executed**:
+  - SQLAlchemy 2.x requires `text()` wrapper for raw SQL strings in `conn.execute()`
+  - Changed from `engine.connect()` + manual `commit()` to `engine.begin()` (auto-commit)
+  - Added `text` to imports
+  - All missing columns (welcome_* on guild_configs, code_verification_* on verification_configs, etc.) now properly added to existing tables
+  - Bot no longer crashes on startup with `no such column` errors
+- **Fixed `/anime` error message** — truncated to 200 chars to prevent HTTP 400 from oversized error response
+
 ### 🔧 Hotfix & Polish
 - **Fixed SQLite blocking the event loop** (heartbeat timeout 60-80s)
   - Enabled WAL journal mode (`PRAGMA journal_mode=WAL`) — readers no longer block writers
