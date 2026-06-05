@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 from sqlalchemy import (
     create_engine, Column, Integer, String, DateTime, ForeignKey,
-    BigInteger, Boolean, Text, Float, JSON, event,
+    BigInteger, Boolean, Text, Float, JSON, event, inspect,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
@@ -423,3 +423,30 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def init_db():
     os.makedirs(os.path.dirname("db/"), exist_ok=True)
     Base.metadata.create_all(bind=engine)
+    _migrate_schema()
+
+
+def _migrate_schema():
+    """Add missing columns to existing tables (SQLite ALTER TABLE)"""
+    inspector = inspect(engine)
+    for table_name, model in Base.metadata.tables.items():
+        existing = {c["name"] for c in inspector.get_columns(table_name)}
+        for column in model.columns:
+            if column.name not in existing:
+                col_type = column.type.compile(engine.dialect)
+                nullable = "NULL" if column.nullable else "NOT NULL"
+                default = ""
+                if column.default is not None:
+                    if isinstance(column.default.arg, str):
+                        default = f" DEFAULT '{column.default.arg}'"
+                    elif isinstance(column.default.arg, (int, float)):
+                        default = f" DEFAULT {column.default.arg}"
+                try:
+                    with engine.connect() as conn:
+                        conn.execute(
+                            f"ALTER TABLE {table_name} ADD COLUMN {column.name} {col_type} {nullable}{default}"
+                        )
+                        conn.commit()
+                    print(f"[migration] Added column {table_name}.{column.name}")
+                except Exception as e:
+                    print(f"[migration] Skipped {table_name}.{column.name}: {e}")
