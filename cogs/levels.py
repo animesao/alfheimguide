@@ -14,14 +14,12 @@ def get_msg(guild_id: int, key: str, **kwargs) -> str:
     return main_get_msg(guild_id, key, **kwargs)
 
 
-class LevelConfigModal(ui.Modal, title="⚙️ Настройка уровней"):
+class LevelConfigModal(ui.Modal, title="⚙️ Основные настройки"):
     enabled = ui.TextInput(label="Включено (true/false)", default="true", required=True, max_length=5)
     xp_min = ui.TextInput(label="Мин. XP за сообщение", default="5", required=True, max_length=5)
     xp_max = ui.TextInput(label="Макс. XP за сообщение", default="15", required=True, max_length=5)
     xp_cooldown = ui.TextInput(label="Задержка XP (сек)", default="60", required=True, max_length=5)
-    level_base = ui.TextInput(label="База XP для 1 ур.", default="100", required=True, max_length=10)
-    level_mult = ui.TextInput(label="Множитель XP (1.5)", default="1.5", required=True, max_length=5)
-    max_level = ui.TextInput(label="Макс. уровень", default="100", required=True, max_length=5)
+    announce = ui.TextInput(label="Объявления о уровне (true/false)", default="true", required=True, max_length=5)
 
     def __init__(self, config: Optional[LevelConfig]):
         super().__init__(timeout=300)
@@ -30,9 +28,7 @@ class LevelConfigModal(ui.Modal, title="⚙️ Настройка уровней
             self.xp_min.default = str(config.xp_min)
             self.xp_max.default = str(config.xp_max)
             self.xp_cooldown.default = str(config.xp_cooldown)
-            self.level_base.default = str(config.level_base_xp)
-            self.level_mult.default = str(config.level_multiplier)
-            self.max_level.default = str(config.max_level)
+            self.announce.default = "true" if config.announce_levelup else "false"
 
     async def on_submit(self, interaction: discord.Interaction):
         session = SessionLocal()
@@ -46,11 +42,40 @@ class LevelConfigModal(ui.Modal, title="⚙️ Настройка уровней
                 config.xp_min = max(1, int(self.xp_min.value))
                 config.xp_max = max(1, int(self.xp_max.value))
                 config.xp_cooldown = max(0, int(self.xp_cooldown.value))
+                config.announce_levelup = self.announce.value.lower() == "true"
+                session.commit()
+                await interaction.response.send_message("✅ Основные настройки сохранены!", ephemeral=True)
+            except ValueError:
+                await interaction.response.send_message("❌ Неверный формат чисел!", ephemeral=True)
+        finally:
+            session.close()
+
+
+class LevelFormulaModal(ui.Modal, title="🧮 Формула XP"):
+    level_base = ui.TextInput(label="База XP для 1 ур.", default="100", required=True, max_length=10)
+    level_mult = ui.TextInput(label="Множитель XP (1.5)", default="1.5", required=True, max_length=5)
+    max_level = ui.TextInput(label="Макс. уровень", default="100", required=True, max_length=5)
+
+    def __init__(self, config: Optional[LevelConfig]):
+        super().__init__(timeout=300)
+        if config:
+            self.level_base.default = str(config.level_base_xp)
+            self.level_mult.default = str(config.level_multiplier)
+            self.max_level.default = str(config.max_level)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        session = SessionLocal()
+        try:
+            config = session.query(LevelConfig).filter_by(guild_id=interaction.guild_id).first()
+            if not config:
+                config = LevelConfig(guild_id=interaction.guild_id)
+                session.add(config)
+            try:
                 config.level_base_xp = max(1, int(self.level_base.value))
                 config.level_multiplier = max(1.0, float(self.level_mult.value))
                 config.max_level = max(1, int(self.max_level.value))
                 session.commit()
-                await interaction.response.send_message("✅ Настройки уровней сохранены!", ephemeral=True)
+                await interaction.response.send_message("✅ Формула XP сохранена!", ephemeral=True)
             except ValueError:
                 await interaction.response.send_message("❌ Неверный формат чисел!", ephemeral=True)
         finally:
@@ -133,18 +158,9 @@ class LevelConfigView(ui.View):
         finally:
             session.close()
 
-    @ui.button(label="🔁 Переключить объявления", style=discord.ButtonStyle.secondary)
-    async def toggle_announce(self, interaction: discord.Interaction, button: ui.Button):
-        session = SessionLocal()
-        try:
-            config = session.query(LevelConfig).filter_by(guild_id=interaction.guild_id).first()
-            if config:
-                config.announce_levelup = not config.announce_levelup
-                session.commit()
-                state = "включены" if config.announce_levelup else "выключены"
-                await interaction.response.send_message(f"✅ Объявления {state}!", ephemeral=True)
-        finally:
-            session.close()
+    @ui.button(label="🧮 Формула XP", style=discord.ButtonStyle.secondary)
+    async def formula_config(self, interaction: discord.Interaction, button: ui.Button):
+        await interaction.response.send_modal(LevelFormulaModal(self.config))
 
 
 def calc_level_xp(level: int, base_xp: int, multiplier: float) -> int:
