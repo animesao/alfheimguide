@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2026.6.5] - 2026-06-05
 
 ### 🔧 Hotfix & Polish
+- **Fixed SQLite blocking the event loop** (heartbeat timeout 60-80s)
+  - Enabled WAL journal mode (`PRAGMA journal_mode=WAL`) — readers no longer block writers
+  - Set `busy_timeout=10000` — SQLite waits 10s for lock instead of instant failure
+  - Set `synchronous=NORMAL` — faster commits without sacrificing safety
+  - Set `cache_size=-8000` — 8MB cache instead of default 2MB
+  - Added `async_commit(session)` helper wrapping `commit()` in `run_in_executor`
+  - Replaced all 5 sync `session.commit()` calls in heavy tasks with `await async_commit()`
+  - Reduced `check_github_updates` interval from 2m to 5m to reduce write contention
 - **Removed broken `ai.chat` loading** from main.py (module didn't exist)
 - **Fixed persistent views** for Verification and Tickets
   - `VerificationView` now registered per-guild from DB at startup
@@ -25,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added dedicated `🚩 Flag` button for toggling flag mode
   - Fixed number display emojis with proper `NUM_EMOJIS` mapping
 - **Fixed crash in main.py `on_ready`** — `session` variable was undefined when querying verification/ticket configs
-- **Updated bot version to 2026.4.18**
+- **Updated bot version to 2026.6.5**
 
 ## [2026.4.17] - 2026-04-17
 
@@ -253,6 +261,7 @@ Examples:
 - `2026.4.15` = April 15, 2026
 - `2026.4.16` = April 16, 2026
 - `2026.5.1` = May 1, 2026
+- `2026.6.5` = June 5, 2026
 
 ## Links
 
