@@ -1,4 +1,4 @@
-# 🌟 Multi-Functional Discord Bot (RU/EN) v2026.4.17
+# 🌟 Multi-Functional Discord Bot (RU/EN) v2026.6.6
 
 [English Version](#english) | [Русская Версия](#russian)
 
@@ -20,11 +20,13 @@ A comprehensive, feature-rich open-source Discord bot written in Python using `d
 * **⚖️ Auto-Moderation**: Configurable anti-spam, anti-links, bad words filter
 * **⏳ Temporary Bans**: Timed bans with automatic unbanning
 * **📈 Leveling System**: XP-based ranking with leaderboards
-* **🎫 Tickets**: Interactive support ticket system
-* **🤖 AI Chat**: Integrated AI conversation system
-* **👋 Welcome System**: Customizable welcome messages
-* **🔐 Verification**: Advanced verification with buttons/dropdowns
+* **🎫 Tickets**: Interactive support ticket system with modal forms
+* **🤖 AI Chat**: Integrated AI conversation via OpenRouter (Nemotron 30B)
+* **👋 Welcome System**: Customizable welcome/leave messages with auto-role
+* **🔐 Verification**: Advanced verification with buttons, dropdowns, captcha, and codes
 * **🎮 Games**: Minesweeper, Snake, and more
+* **🎁 Giveaways**: Create giveaways with role/level requirements
+* **🔊 Voice Channels**: Join-to-create temporary voice channels with full control
 * **🎨 Customization**: Per-server colors, settings, and modules
 
 #### 🧠 Advanced Moderation Features
@@ -43,6 +45,19 @@ A comprehensive, feature-rich open-source Discord bot written in Python using `d
 * **Shop System**: Buy roles and custom items
 * **Transfers**: Send coins to other users
 * **Leaderboards**: See the richest members
+
+#### 🎁 Giveaways Features
+* **Create Giveaways**: Interactive modals for prize, description, duration
+* **Requirements**: Optional role and level requirements to enter
+* **Auto-Draw**: Automatic winner selection when giveaway expires
+* **Reroll**: Pick a new winner if needed
+* **List Active**: View all running giveaways
+
+#### 🔊 Voice Channel Features
+* **Join-to-Create**: Auto-create temporary voice channels
+* **Owner Controls**: Lock, unlock, hide, rename, limit users, transfer ownership
+* **Auto-Cleanup**: Empty channels deleted automatically
+* **Full Permissions**: Kick, ban, invite, bitrate control from channel owner panel
 
 #### 📊 Statistics Features
 * **Activity Tracking**: Monitor server and user activity
@@ -67,8 +82,11 @@ A comprehensive, feature-rich open-source Discord bot written in Python using `d
 | `/set_report_channel` | Set channel for user reports |
 | `/set_lang` | Set bot language (RU/EN) |
 | `/set_color` | Set embed color (Hex) |
-| `/config` | Enable/disable modules |
+| `/config` | Enable/disable modules (Levels, GitHub, Welcome, Economy, Stats, AI) |
 | `/status` | View server settings |
+| `/version` | Show bot version info |
+| `/help` | Show all available commands |
+| `/refresh_cache` | Refresh bot cache |
 
 #### 🛡️ Moderation
 | Command | Description |
@@ -82,7 +100,7 @@ A comprehensive, feature-rich open-source Discord bot written in Python using `d
 | `/warn` | Warn a member |
 | `/warnings` | View user warnings |
 | `/clear` | Delete messages |
-| `/automod_setup` | Configure auto-moderation |
+| `/automod_setup` | Configure auto-moderation (bad words, caps, links, spam) |
 | `/report` | Report a user |
 | `/reports` | View pending reports |
 | `/report_resolve` | Resolve a report |
@@ -90,6 +108,7 @@ A comprehensive, feature-rich open-source Discord bot written in Python using `d
 | `/massban` | Ban multiple users |
 | `/masskick` | Kick multiple users |
 | `/raid_protection` | Configure raid protection |
+| `/refresh_cache` | Refresh message cache |
 
 #### 💰 Economy
 | Command | Description |
@@ -130,15 +149,55 @@ A comprehensive, feature-rich open-source Discord bot written in Python using `d
 | Command | Description |
 |---------|-------------|
 | `/rank` | View your rank |
+| `/level_config` | Configure level formula, XP rates, role rewards |
 | `/minesweeper` | Play Minesweeper |
 | `/snake` | Play Snake |
 | `/anime` | Random anime image |
+
+#### 🎁 Giveaways
+| Command | Description |
+|---------|-------------|
+| `/giveaway` | Create a new giveaway |
+| `/giveaway_reroll` | Reroll giveaway winner |
+| `/giveaway_end` | End a giveaway early |
+| `/giveaway_list` | View active giveaways |
 
 #### 🔍 GitHub Tracking
 | Command | Description |
 |---------|-------------|
 | `/add_user` | Track GitHub user |
 | `/remove_user` | Stop tracking user |
+
+#### 🤖 AI Chat
+| Command | Description |
+|---------|-------------|
+| `/ai ask` | Ask AI a question |
+| `/ai channel` | Set AI auto-respond channel |
+| `/ai toggle` | Enable/disable AI in channel |
+| `/ai reset` | Reset conversation history |
+| `!ask` | Prefix command to ask AI |
+
+#### 👋 Welcome & Verification
+| Command | Description |
+|---------|-------------|
+| `/welcome_setup` | Configure welcome/leave messages |
+| `/welcome_test` | Test welcome message |
+| `/verify` | Open verification panel |
+| `/verify_setup` | Configure verification |
+| `/verify_presets` | Use verification presets |
+| `/verify_preview` | Preview verification embed |
+| `/verify_actions` | Manage verification actions |
+| `/verify_code_setup` | Setup code verification |
+| `/verify_code` | Request verification code (DM) |
+| `/verify_code_enter` | Enter verification code |
+
+#### 🎫 Tickets & Voice
+| Command | Description |
+|---------|-------------|
+| `/ticket_setup` | Configure ticket system |
+| `/ticket_config_category` | Configure ticket category |
+| `/ticket_color` | Set ticket embed color |
+| `/voice_setup` | Configure temporary voice channels |
 
 ### 🛠 Installation
 
@@ -239,12 +298,14 @@ Each server can customize:
 * **⚖️ Авто-модерация**: Настраиваемый анти-спам, анти-ссылки, фильтр слов
 * **⏳ Временные баны**: Баны на время с автоматическим разбаном
 * **📈 Система уровней**: Рейтинг на основе XP с таблицами лидеров
-* **🎫 Тикеты**: Интерактивная система поддержки
-* **🤖 AI Чат**: Интегрированная система общения с ИИ
-* **👋 Система приветствий**: Настраиваемые приветственные сообщения
-* **🔐 Верификация**: Продвинутая верификация с кнопками/списками
-* **� Игры**: Сапёр, Змейка и другие
-* **�🎨 Персонализация**: Цвета, настройки и модули для каждого сервера
+* **🎫 Тикеты**: Интерактивная система поддержки с модальными формами
+* **🤖 AI Чат**: Интегрированная система общения с ИИ (OpenRouter Nemotron 30B)
+* **👋 Система приветствий**: Настраиваемые приветственные сообщения с авто-ролью
+* **🔐 Верификация**: Продвинутая верификация с кнопками, списками, капчей и кодами
+* **🎮 Игры**: Сапёр, Змейка и другие
+* **🎁 Розыгрыши**: Создание розыгрышей с требованиями по ролям/уровням
+* **🔊 Голосовые каналы**: Временные каналы с полным управлением
+* **🎨 Персонализация**: Цвета, настройки и модули для каждого сервера
 
 #### 🧠 Расширенная модерация
 * **Логирование сообщений**: Отслеживание удалённых и отредактированных сообщений
@@ -262,6 +323,19 @@ Each server can customize:
 * **Система магазина**: Покупка ролей и кастомных предметов
 * **Переводы**: Отправка монет другим пользователям
 * **Таблицы лидеров**: Просмотр самых богатых участников
+
+#### 🎁 Розыгрыши
+* **Создание**: Интерактивные модальные окна для приза, описания, длительности
+* **Требования**: Опциональные требования по ролям и уровням
+* **Авто-розыгрыш**: Автоматический выбор победителя
+* **Перерозыгрыш**: Выбор нового победителя при необходимости
+* **Список**: Просмотр всех активных розыгрышей
+
+#### 🔊 Голосовые каналы
+* **Создание по входу**: Авто-создание временных голосовых каналов
+* **Управление**: Блокировка, скрытие, переименование, лимит пользователей
+* **Авто-очистка**: Пустые каналы удаляются автоматически
+* **Полные права**: Кик, бан, приглашение, битрейт из панели владельца
 
 #### 📊 Статистика
 * **Отслеживание активности**: Мониторинг активности сервера и пользователей
@@ -286,8 +360,11 @@ Each server can customize:
 | `/set_report_channel` | Установить канал жалоб |
 | `/set_lang` | Установить язык бота (RU/EN) |
 | `/set_color` | Установить цвет эмбедов (Hex) |
-| `/config` | Включить/выключить модули |
+| `/config` | Включить/выключить модули (Levels, GitHub, Welcome, Economy, Stats, AI) |
 | `/status` | Просмотр настроек сервера |
+| `/version` | Информация о версии бота |
+| `/help` | Все доступные команды |
+| `/refresh_cache` | Обновить кеш бота |
 
 #### 🛡️ Модерация
 | Команда | Описание |
@@ -301,7 +378,7 @@ Each server can customize:
 | `/warn` | Выдать предупреждение |
 | `/warnings` | Просмотр предупреждений |
 | `/clear` | Удалить сообщения |
-| `/automod_setup` | Настроить авто-модерацию |
+| `/automod_setup` | Настроить авто-модерацию (слова, капс, ссылки, спам) |
 | `/report` | Пожаловаться на пользователя |
 | `/reports` | Просмотр жалоб |
 | `/report_resolve` | Разрешить жалобу |
@@ -309,6 +386,7 @@ Each server can customize:
 | `/massban` | Забанить несколько пользователей |
 | `/masskick` | Кикнуть несколько пользователей |
 | `/raid_protection` | Настроить защиту от рейдов |
+| `/refresh_cache` | Обновить кеш сообщений |
 
 #### 💰 Экономика
 | Команда | Описание |
@@ -349,15 +427,55 @@ Each server can customize:
 | Команда | Описание |
 |---------|----------|
 | `/rank` | Просмотр ранга |
+| `/level_config` | Настройка формулы уровней, XP, наград за роли |
 | `/minesweeper` | Играть в Сапёр |
 | `/snake` | Играть в Змейку |
 | `/anime` | Случайное аниме изображение |
+
+#### 🎁 Розыгрыши
+| Команда | Описание |
+|---------|----------|
+| `/giveaway` | Создать розыгрыш |
+| `/giveaway_reroll` | Перерозыгрыш победителя |
+| `/giveaway_end` | Завершить розыгрыш досрочно |
+| `/giveaway_list` | Активные розыгрыши |
 
 #### 🔍 GitHub Трекинг
 | Команда | Описание |
 |---------|----------|
 | `/add_user` | Отслеживать пользователя GitHub |
 | `/remove_user` | Прекратить отслеживание |
+
+#### 🤖 AI Чат
+| Команда | Описание |
+|---------|----------|
+| `/ai ask` | Задать вопрос ИИ |
+| `/ai channel` | Установить канал авто-ответа ИИ |
+| `/ai toggle` | Включить/выключить ИИ в канале |
+| `/ai reset` | Сбросить историю диалога |
+| `!ask` | Префиксная команда для вопросов ИИ |
+
+#### 👋 Приветствия и Верификация
+| Команда | Описание |
+|---------|----------|
+| `/welcome_setup` | Настроить приветственные сообщения |
+| `/welcome_test` | Протестировать приветствие |
+| `/verify` | Открыть панель верификации |
+| `/verify_setup` | Настроить верификацию |
+| `/verify_presets` | Использовать пресеты верификации |
+| `/verify_preview` | Предпросмотр эмбеда верификации |
+| `/verify_actions` | Управление действиями верификации |
+| `/verify_code_setup` | Настроить код верификации |
+| `/verify_code` | Запросить код верификации (ЛС) |
+| `/verify_code_enter` | Ввести код верификации |
+
+#### 🎫 Тикеты и Голосовые каналы
+| Команда | Описание |
+|---------|----------|
+| `/ticket_setup` | Настроить систему тикетов |
+| `/ticket_config_category` | Настроить категорию тикетов |
+| `/ticket_color` | Цвет эмбедов тикетов |
+| `/voice_setup` | Настроить временные голосовые каналы |
 
 ### 🛠 Установка
 
@@ -426,10 +544,6 @@ python update_bot.py --auto-update
 * 🐙 **GitHub** — [github.com/animesao/alfheimguide](https://github.com/animesao/alfheimguide)
 
 ---
-
-## 📸 Screenshots
-
-Coming soon...
 
 ## 🤝 Contributing
 
