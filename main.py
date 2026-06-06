@@ -7,7 +7,7 @@ from discord.ext import commands, tasks
 
 load_dotenv()
 
-BOT_VERSION = "2026.6.5"
+BOT_VERSION = "2026.6.6"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -118,6 +118,12 @@ MESSAGES = {
         "giveaway_created": "🎉 **Розыгрыш создан!**",
         "giveaway_ended": "🎉 **Розыгрыш завершён!** Победитель: {winner}",
         "giveaway_enter": "🎉 Участвовать в розыгрыше",
+        "ai_config_updated": "✅ Настройки AI обновлены!",
+        "ai_channel_added": "✅ Канал {channel} добавлен для AI.",
+        "ai_channel_removed": "✅ Канал {channel} удалён из AI.",
+        "ai_dm_toggle": "✅ AI в ЛС теперь {state}.",
+        "ai_auto_respond_toggle": "✅ Авто-ответ AI теперь {state}.",
+        "ai_help": "Используйте `/ai` для настройки AI на сервере или просто напишите сообщение в настроенном канале.",
     },
     "en": {
         "unbanned_auto": "⏰ Auto-unbanned user {user}",
@@ -192,6 +198,12 @@ MESSAGES = {
         "giveaway_created": "🎉 **Giveaway created!**",
         "giveaway_ended": "🎉 **Giveaway ended!** Winner: {winner}",
         "giveaway_enter": "🎉 Enter Giveaway",
+        "ai_config_updated": "✅ AI settings updated!",
+        "ai_channel_added": "✅ Channel {channel} added for AI.",
+        "ai_channel_removed": "✅ Channel {channel} removed from AI.",
+        "ai_dm_toggle": "✅ AI in DMs is now {state}.",
+        "ai_auto_respond_toggle": "✅ AI auto-respond is now {state}.",
+        "ai_help": "Use `/ai` to configure AI on this server, or just send a message in a configured channel.",
     },
 }
 bot.MESSAGES = MESSAGES
@@ -367,6 +379,12 @@ async def on_ready():
     finally:
         session.close()
 
+    try:
+        await bot.load_extension("ai.chat")
+        logger.info("Loaded AI chat cog")
+    except Exception as e:
+        logger.error(f"Failed to load AI chat cog: {e}")
+
     if not check_temp_bans.is_running():
         check_temp_bans.start()
 
@@ -446,6 +464,7 @@ async def set_report_channel(
         app_commands.Choice(name="Welcome System", value="welcome"),
         app_commands.Choice(name="Economy", value="economy"),
         app_commands.Choice(name="Statistics", value="stats"),
+        app_commands.Choice(name="AI Chat", value="ai"),
     ],
     action=[
         app_commands.Choice(name="Enable", value="enable"),
@@ -474,6 +493,8 @@ async def config_slash(
             config.economy_enabled = enabled
         elif module.value == "stats":
             config.stats_enabled = enabled
+        elif module.value == "ai":
+            config.ai_enabled = enabled
 
         session.commit()
 
@@ -603,6 +624,7 @@ async def help_slash(interaction: discord.Interaction):
                 inline=False,
             )
             embed.add_field(name="📊 Уровни", value="`/rank` - Ваш ранг\n`/level_config` - Настройка уровней", inline=False)
+            embed.add_field(name="🤖 AI Чат", value="`/ai` - Настройка AI\n`!ask` - Спросить AI (если каналы не настроены)", inline=False)
             embed.add_field(name="🎮 Игры", value="`/minesweeper` `/snake` `/anime`", inline=False)
             embed.add_field(name="🎁 Розыгрыши", value="`/giveaway` - Создать розыгрыш", inline=False)
             embed.set_footer(text=f"Alfheim Guide Bot v{BOT_VERSION}")
@@ -651,6 +673,7 @@ async def help_slash(interaction: discord.Interaction):
                 inline=False,
             )
             embed.add_field(name="📊 Levels", value="`/rank` - Your rank\n`/level_config` - Level config", inline=False)
+            embed.add_field(name="🤖 AI Chat", value="`/ai` - AI settings\n`!ask` - Ask AI (if no channels configured)", inline=False)
             embed.add_field(name="🎮 Games", value="`/minesweeper` `/snake` `/anime`", inline=False)
             embed.add_field(name="🎁 Giveaways", value="`/giveaway` - Create giveaway", inline=False)
             embed.set_footer(text=f"Alfheim Guide Bot v{BOT_VERSION}")
@@ -718,6 +741,7 @@ async def status_slash(interaction: discord.Interaction):
         modules.append(f"Welcome {'✅' if config.welcome_enabled else '❌'}")
         modules.append(f"Economy {'✅' if config.economy_enabled else '❌'}")
         modules.append(f"Statistics {'✅' if config.stats_enabled else '❌'}")
+        modules.append(f"AI Chat {'✅' if config.ai_enabled else '❌'}")
 
         embed.add_field(name="Modules Status", value="\n".join(modules), inline=False)
 

@@ -1,13 +1,14 @@
 {
-  "version": "2026.6.5",
-  "release_date": "2026-06-05",
-  "codename": "Hotfix & Polish",
+  "version": "2026.6.6",
+  "release_date": "2026-06-06",
+  "codename": "AI Chat Hotfix",
   "major": 2026,
   "minor": 6,
-  "patch": 5,
+  "patch": 6,
   "build": "stable",
   "changelog": "CHANGELOG.md",
   "features": [
+    "AI Chat Module Fix",
     "Level System with Modals",
     "Giveaway System",
     "Code Verification",

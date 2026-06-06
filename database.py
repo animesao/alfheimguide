@@ -50,6 +50,11 @@ class GuildConfig(Base):
     log_channel_id = Column(BigInteger, nullable=True)
     report_channel_id = Column(BigInteger, nullable=True)
 
+    ai_enabled = Column(Boolean, default=True)
+    ai_channel_ids = Column(Text, default="")
+    ai_auto_respond = Column(Boolean, default=False)
+    ai_dm_enabled = Column(Boolean, default=True)
+
 
 class LevelConfig(Base):
     __tablename__ = "level_configs"

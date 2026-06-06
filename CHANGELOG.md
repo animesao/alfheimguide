@@ -5,6 +5,28 @@ All notable changes to Alfheim Guide Bot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.6.6] - 2026-06-06
+
+### 🐛 Critical Fix
+- **Fixed AI Chat module not loading (`!ask`, `!helpai` not found)**:
+  - `ai/chat.py` was never loaded because `main.py` only scans `cogs/` directory
+  - Added explicit `await bot.load_extension("ai.chat")` in `on_ready`
+  - AI Chat now properly loads on startup
+
+### ✨ Added
+- **AI Chat configuration system**:
+  - New DB fields: `ai_enabled`, `ai_channel_ids`, `ai_auto_respond`, `ai_dm_enabled`
+  - `/ai channel add/remove/list` — manage auto-respond channels
+  - `/ai toggle auto-respond` — enable/disable auto-respond in channels
+  - `/ai toggle dm` — enable/disable AI in DMs
+  - `/ai ask` — ask AI via slash command
+  - `/ai reset` — reset conversation history
+  - `!ask` prefix command works as fallback when no channels configured
+  - AI in DMs: detects user's guild and checks per-server permissions
+  - Module toggle in `/config` and status in `/status`
+  - Auto-migration via `_migrate_schema()` — no manual DB changes needed
+- **Updated bot version to 2026.6.6**
+
 ## [2026.6.5] - 2026-06-05
 
 ### 🐛 Critical Fix
