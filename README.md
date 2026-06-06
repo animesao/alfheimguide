@@ -278,6 +278,7 @@ Each server can customize:
 
 * 💬 **Discord** — [alfheimguide](https://dsc.gg/alfheimguide)
 * 🌍 **Website** — [alfheimguide](http://animesao.spcfy.eu/)
+* 🐙 **GitHub** — [gitlab.com/animesao/alfheimguide](https://gitlab.com/animesao/alfheimguide)
 * 🐙 **GitHub** — [github.com/animesao/alfheimguide](https://github.com/animesao/alfheimguide)
 
 ---
@@ -541,6 +542,7 @@ python update_bot.py --auto-update
 
 * 💬 **Discord** — [alfheimguide](https://dsc.gg/alfheimguide)
 * 🌍 **Сайт** — [alfheimguide](http://animesao.spcfy.eu/)
+* 🐙 **GitHub** — [gitlab.com/animesao/alfheimguide](https://gitlab.com/animesao/alfheimguide)
 * 🐙 **GitHub** — [github.com/animesao/alfheimguide](https://github.com/animesao/alfheimguide)
 
 ---
