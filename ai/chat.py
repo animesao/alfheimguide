@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from typing import Optional
 from discord.ext import commands
 from discord import app_commands
 import discord
