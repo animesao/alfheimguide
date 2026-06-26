@@ -17,11 +17,13 @@ class VoiceControlPanel(ui.View):
         try:
             temp_channel = session.query(TempVoiceChannel).filter_by(channel_id=self.channel_id).first()
             if not temp_channel:
-                await interaction.response.send_message("Канал не найден.", ephemeral=True)
+                msg = "Канал не найден." if self.lang == "ru" else "Channel not found."
+                await interaction.response.send_message(msg, ephemeral=True)
                 return False
             if interaction.user.id != temp_channel.owner_id:
                 if not interaction.user.guild_permissions.manage_channels:
-                    await interaction.response.send_message("Только владелец может это сделать.", ephemeral=True)
+                    msg = "Только владелец может это сделать." if self.lang == "ru" else "Only the owner can do that."
+                    await interaction.response.send_message(msg, ephemeral=True)
                     return False
             return True
         finally:
@@ -125,11 +127,16 @@ class VoiceControlPanel(ui.View):
         await interaction.response.send_modal(modal)
 
 
-class RenameModal(ui.Modal, title="Переименовать"):
-    name = ui.TextInput(label="Новое название", placeholder="Voice Chat", min_length=1, max_length=100)
-    def __init__(self, channel_id: int):
-        super().__init__()
+class RenameModal(ui.Modal):
+    def __init__(self, channel_id: int, lang: str = "ru"):
+        super().__init__(title="Переименовать" if lang == "ru" else "Rename")
         self.channel_id = channel_id
+        self.lang = lang
+        self.name = ui.TextInput(
+            label="Новое название" if lang == "ru" else "New name",
+            placeholder="Voice Chat",
+            min_length=1, max_length=100,
+        )
     async def on_submit(self, interaction: discord.Interaction):
         channel = interaction.guild.get_channel(self.channel_id)
         if channel:
@@ -139,19 +146,25 @@ class RenameModal(ui.Modal, title="Переименовать"):
                 tc = session.query(TempVoiceChannel).filter_by(channel_id=self.channel_id).first()
                 if tc: tc.name = self.name.value; session.commit()
             finally: session.close()
-            await interaction.response.send_message(f"✅ Канал переименован в **{self.name.value}**", ephemeral=True)
+            msg = f"✅ Канал переименован в **{self.name.value}**" if self.lang == "ru" else f"✅ Channel renamed to **{self.name.value}**"
+            await interaction.response.send_message(msg, ephemeral=True)
 
 
-class LimitModal(ui.Modal, title="Лимит участников"):
-    limit = ui.TextInput(label="Лимит (0 = без лимита)", placeholder="5", min_length=1, max_length=2)
-    def __init__(self, channel_id: int):
-        super().__init__()
+class LimitModal(ui.Modal):
+    def __init__(self, channel_id: int, lang: str = "ru"):
+        super().__init__(title="Лимит участников" if lang == "ru" else "User limit")
         self.channel_id = channel_id
+        self.lang = lang
+        self.limit = ui.TextInput(
+            label="Лимит (0 = без лимита)" if lang == "ru" else "Limit (0 = no limit)",
+            placeholder="5", min_length=1, max_length=2,
+        )
     async def on_submit(self, interaction: discord.Interaction):
         try:
             val = max(0, min(99, int(self.limit.value)))
         except Exception:
-            await interaction.response.send_message("❌ Введите число!", ephemeral=True); return
+            err = "❌ Введите число!" if self.lang == "ru" else "❌ Enter a number!"
+            await interaction.response.send_message(err, ephemeral=True); return
         channel = interaction.guild.get_channel(self.channel_id)
         if channel:
             await channel.edit(user_limit=val)
@@ -160,34 +173,56 @@ class LimitModal(ui.Modal, title="Лимит участников"):
                 tc = session.query(TempVoiceChannel).filter_by(channel_id=self.channel_id).first()
                 if tc: tc.user_limit = val; session.commit()
             finally: session.close()
-            await interaction.response.send_message(f"✅ Лимит: {val if val > 0 else 'без лимита'}", ephemeral=True)
+            limit_str = str(val) if val > 0 else ("без лимита" if self.lang == "ru" else "no limit")
+            await interaction.response.send_message(f"✅ Лимит: {limit_str}" if self.lang == "ru" else f"✅ Limit: {limit_str}", ephemeral=True)
 
 
-class BitrateModal(ui.Modal, title="Битрейт (kbps)"):
-    bitrate = ui.TextInput(label="Битрейт (8-384)", placeholder="64", min_length=1, max_length=3)
-    def __init__(self, channel_id: int):
-        super().__init__()
+class BitrateModal(ui.Modal):
+    def __init__(self, channel_id: int, lang: str = "ru"):
+        super().__init__(title="Битрейт (kbps)" if lang == "ru" else "Bitrate (kbps)")
         self.channel_id = channel_id
+        self.lang = lang
+        self.bitrate = ui.TextInput(
+            label="Битрейт (8-384)" if lang == "ru" else "Bitrate (8-384)",
+            placeholder="64", min_length=1, max_length=3,
+        )
     async def on_submit(self, interaction: discord.Interaction):
         try:
             val = max(8, min(384, int(self.bitrate.value)))
         except Exception:
-            await interaction.response.send_message("❌ Введите число!", ephemeral=True); return
+            err = "❌ Введите число!" if self.lang == "ru" else "❌ Enter a number!"
+            await interaction.response.send_message(err, ephemeral=True); return
         channel = interaction.guild.get_channel(self.channel_id)
         if channel:
             await channel.edit(bitrate=val * 1000)
-            await interaction.response.send_message(f"✅ Битрейт: {val} kbps", ephemeral=True)
+            msg = f"✅ Битрейт: {val} kbps" if self.lang == "ru" else f"✅ Bitrate: {val} kbps"
+            await interaction.response.send_message(msg, ephemeral=True)
 
 
-class UserActionModal(ui.Modal, title="Действие"):
-    user_id_input = ui.TextInput(label="ID или @упоминание", placeholder="123456789", min_length=1, max_length=50)
-    def __init__(self, channel_id: int, action: str):
-        super().__init__(title={
-            "invite": "Пригласить", "kick": "Выгнать",
-            "ban": "Забанить", "transfer": "Передать владение"
-        }.get(action, "Действие"))
+_USER_ACTION_TITLES_RU = {"invite": "Пригласить", "kick": "Выгнать", "ban": "Забанить", "transfer": "Передать владение"}
+_USER_ACTION_TITLES_EN = {"invite": "Invite", "kick": "Kick", "ban": "Ban", "transfer": "Transfer ownership"}
+_USER_ACTION_RESULTS_RU = {
+    "invite": lambda m: f"✅ {m.mention} приглашён!",
+    "kick": lambda m: f"✅ {m.mention} выгнан!",
+    "ban": lambda m: f"✅ {m.mention} забанен!",
+    "transfer": lambda m: f"✅ Владение передано {m.mention}!",
+}
+_USER_ACTION_RESULTS_EN = {
+    "invite": lambda m: f"✅ {m.mention} invited!",
+    "kick": lambda m: f"✅ {m.mention} kicked!",
+    "ban": lambda m: f"✅ {m.mention} banned!",
+    "transfer": lambda m: f"✅ Ownership transferred to {m.mention}!",
+}
+
+
+class UserActionModal(ui.Modal):
+    user_id_input = ui.TextInput(label="ID или @упоминание" if True else "", placeholder="123456789", min_length=1, max_length=50)
+    def __init__(self, channel_id: int, action: str, lang: str = "ru"):
+        titles = _USER_ACTION_TITLES_RU if lang == "ru" else _USER_ACTION_TITLES_EN
+        super().__init__(title=titles.get(action, "Действие" if lang == "ru" else "Action"))
         self.channel_id = channel_id
         self.action = action
+        self.lang = lang
     async def on_submit(self, interaction: discord.Interaction):
         uid = self.user_id_input.value.strip().replace("<@", "").replace(">", "").replace("!", "")
         try:
@@ -195,33 +230,40 @@ class UserActionModal(ui.Modal, title="Действие"):
             if not member:
                 member = await interaction.guild.fetch_member(int(uid))
         except Exception:
-            await interaction.response.send_message("❌ Пользователь не найден!", ephemeral=True); return
+            err = "❌ Пользователь не найден!" if self.lang == "ru" else "❌ User not found!"
+            await interaction.response.send_message(err, ephemeral=True); return
 
         channel = interaction.guild.get_channel(self.channel_id)
         if not channel:
-            await interaction.response.send_message("❌ Канал не найден!", ephemeral=True); return
+            err = "❌ Канал не найден!" if self.lang == "ru" else "❌ Channel not found!"
+            await interaction.response.send_message(err, ephemeral=True); return
 
         if self.action == "invite":
             await channel.set_permissions(member, connect=True, view_channel=True)
-            await interaction.response.send_message(f"✅ {member.mention} приглашён!", ephemeral=True)
+            results = _USER_ACTION_RESULTS_RU if self.lang == "ru" else _USER_ACTION_RESULTS_EN
+            await interaction.response.send_message(results["invite"](member), ephemeral=True)
         elif self.action == "kick":
             if member.voice and member.voice.channel == channel:
                 await member.move_to(None)
-                await interaction.response.send_message(f"✅ {member.mention} выгнан!", ephemeral=True)
+                results = _USER_ACTION_RESULTS_RU if self.lang == "ru" else _USER_ACTION_RESULTS_EN
+                await interaction.response.send_message(results["kick"](member), ephemeral=True)
             else:
-                await interaction.response.send_message("❌ Не в этом канале!", ephemeral=True)
+                err = "❌ Не в этом канале!" if self.lang == "ru" else "❌ Not in this channel!"
+                await interaction.response.send_message(err, ephemeral=True)
         elif self.action == "ban":
             await channel.set_permissions(member, connect=False, view_channel=False)
             if member.voice and member.voice.channel == channel:
                 await member.move_to(None)
-            await interaction.response.send_message(f"✅ {member.mention} забанен!", ephemeral=True)
+            results = _USER_ACTION_RESULTS_RU if self.lang == "ru" else _USER_ACTION_RESULTS_EN
+            await interaction.response.send_message(results["ban"](member), ephemeral=True)
         elif self.action == "transfer":
             session = SessionLocal()
             try:
                 tc = session.query(TempVoiceChannel).filter_by(channel_id=self.channel_id).first()
                 if tc: tc.owner_id = member.id; session.commit()
             finally: session.close()
-            await interaction.response.send_message(f"✅ Владение передано {member.mention}!", ephemeral=True)
+            results = _USER_ACTION_RESULTS_RU if self.lang == "ru" else _USER_ACTION_RESULTS_EN
+            await interaction.response.send_message(results["transfer"](member), ephemeral=True)
 
 
 class VoiceChannels(commands.Cog):
@@ -257,7 +299,7 @@ class VoiceChannels(commands.Cog):
     async def before_check(self):
         await self.bot.wait_until_ready()
 
-    @app_commands.command(name="voice_setup", description="Настроить систему голосовых каналов")
+    @app_commands.command(name="voice_setup", description="Set up voice channel system")
     @app_commands.checks.has_permissions(administrator=True)
     async def voice_setup(self, interaction: discord.Interaction,
                           creator_channel: discord.VoiceChannel,
@@ -266,6 +308,9 @@ class VoiceChannels(commands.Cog):
                           bitrate: int = 64):
         session = SessionLocal()
         try:
+            gc = session.query(GuildConfig).filter_by(guild_id=interaction.guild.id).first()
+            lang = str(gc.language) if gc and gc.language else "ru"
+            is_ru = lang == "ru"
             config = session.query(VoiceChannelConfig).filter_by(
                 guild_id=interaction.guild.id, creator_channel_id=creator_channel.id
             ).first()
@@ -283,11 +328,15 @@ class VoiceChannels(commands.Cog):
                 )
                 session.add(config)
             session.commit()
+            limit_str = str(default_limit) if default_limit else ("Без лимита" if is_ru else "No limit")
             embed = discord.Embed(
-                title="✅ Система голосовых каналов",
-                description=f"**Канал-создатель:** {creator_channel.mention}\n"
-                           f"**Шаблон:** `{default_name}`\n**Лимит:** {default_limit if default_limit else 'Без лимита'}\n"
-                           f"**Битрейт:** {bitrate} kbps",
+                title="✅ Система голосовых каналов" if is_ru else "✅ Voice Channel System",
+                description=(
+                    f"**{'Канал-создатель' if is_ru else 'Creator channel'}:** {creator_channel.mention}\n"
+                    f"**{'Шаблон' if is_ru else 'Template'}:** `{default_name}`\n"
+                    f"**{'Лимит' if is_ru else 'Limit'}:** {limit_str}\n"
+                    f"**{'Битрейт' if is_ru else 'Bitrate'}:** {bitrate} kbps"
+                ),
                 color=discord.Color.green()
             )
             await interaction.response.send_message(embed=embed)
