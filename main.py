@@ -355,24 +355,24 @@ async def on_ready():
     if not update_status.is_running():
         update_status.start()
 
-    for filename in os.listdir("./cogs"):
-        if filename.endswith(".py") and not filename.startswith("__"):
+    for entry in os.listdir("./cogs"):
+        path = os.path.join("./cogs", entry)
+        if entry.startswith("__"):
+            continue
+        if entry.endswith(".py"):
             try:
-                await bot.load_extension(f"cogs.{filename[:-3]}")
-                logger.info(f"Loaded cog: {filename}")
+                await bot.load_extension(f"cogs.{entry[:-3]}")
+                logger.info(f"Loaded cog: {entry}")
             except Exception as e:
-                logger.error(f"Failed to load cog {filename}: {e}")
-
-    for dirname in os.listdir("./cogs"):
-        dirpath = os.path.join("./cogs", dirname)
-        if os.path.isdir(dirpath) and not dirname.startswith("__"):
-            init_file = os.path.join(dirpath, "__init__.py")
+                logger.error(f"Failed to load cog {entry}: {e}")
+        elif os.path.isdir(path):
+            init_file = os.path.join(path, "__init__.py")
             if os.path.exists(init_file):
                 try:
-                    await bot.load_extension(f"cogs.{dirname}")
-                    logger.info(f"Loaded cog package: {dirname}")
+                    await bot.load_extension(f"cogs.{entry}")
+                    logger.info(f"Loaded cog package: {entry}")
                 except Exception as e:
-                    logger.error(f"Failed to load cog package {dirname}: {e}")
+                    logger.error(f"Failed to load cog package {entry}: {e}")
 
     from cogs.tickets import TicketPersistentView
     from cogs.verifications.verification import VerificationView
@@ -672,6 +672,7 @@ async def version_slash(interaction: discord.Interaction):
                 version_data = json.load(f)
         except Exception as e:
             logger.warning(f"Could not load .version file: {e}")
+            version_data = {"version": BOT_VERSION, "release_date": "2026-04-17"}
 
         release_date = version_data.get("release_date", "2026-04-17")
         try:
@@ -1103,7 +1104,10 @@ async def check_github_updates():
 
 
 if __name__ == "__main__":
-    if not DISCORD_TOKEN or not GITHUB_TOKEN:
-        logger.critical("Error: DISCORD_TOKEN and GITHUB_TOKEN must be set.")
+    if not DISCORD_TOKEN:
+        logger.critical("Error: DISCORD_TOKEN must be set in .env")
+    elif not GITHUB_TOKEN:
+        logger.warning("GITHUB_TOKEN not set — GitHub tracking disabled")
+        bot.run(DISCORD_TOKEN)
     else:
         bot.run(DISCORD_TOKEN)

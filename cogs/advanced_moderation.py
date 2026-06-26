@@ -1,11 +1,14 @@
 import discord
 import json
 import re
+import logging
 import datetime
 from discord.ext import commands, tasks
 from discord import app_commands
 from database import SessionLocal, Report, MessageLog, RaidProtection, SuspiciousJoin, GuildConfig, Warning
 from typing import Optional
+
+logger = logging.getLogger("alfheim_bot.advanced_mod")
 
 
 class AdvancedModeration(commands.Cog):
@@ -15,10 +18,18 @@ class AdvancedModeration(commands.Cog):
         self.join_tracker = {}
         self._msg_log_cache = {}
         self._spam_config_cache = {}
+        self.cache_cleanup.start()
         self.check_raid_protection.start()
 
     def cog_unload(self):
         self.check_raid_protection.cancel()
+        self.cache_cleanup.cancel()
+
+    @tasks.loop(minutes=30)
+    async def cache_cleanup(self):
+        self.spam_tracker.clear()
+        self.join_tracker.clear()
+        self._spam_config_cache.clear()
 
     def _get_guild_config(self, guild_id: int):
         if guild_id not in self._msg_log_cache:
@@ -163,7 +174,7 @@ class AdvancedModeration(commands.Cog):
                                     f"🚨 **RAID DETECTED!** {len(self.join_tracker[guild_key])} joins/60s. "
                                     f"Action: {raid_config.action} on {member.mention}"
                                 )
-                    except:
+                    except Exception as e:
                         pass
         finally:
             session.close()

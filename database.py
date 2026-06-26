@@ -426,7 +426,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db():
-    os.makedirs(os.path.dirname("db/"), exist_ok=True)
+    os.makedirs("db", exist_ok=True)
     Base.metadata.create_all(bind=engine)
     _migrate_schema()
 

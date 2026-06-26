@@ -20,16 +20,22 @@ class Statistics(commands.Cog):
     @tasks.loop(minutes=5)
     async def auto_save_stats(self):
         now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         session = SessionLocal()
         try:
-            for guild_id, users in self.daily_stats.items():
-                for user_id, count in users.items():
+            for guild_id, users in list(self.daily_stats.items()):
+                for user_id, count in list(users.items()):
                     if count > 0:
-                        activity = UserActivity(
-                            guild_id=guild_id, user_id=user_id,
-                            date=now, message_count=count
-                        )
-                        session.add(activity)
+                        existing = session.query(UserActivity).filter_by(
+                            guild_id=guild_id, user_id=user_id, date=today
+                        ).first()
+                        if existing:
+                            existing.message_count += count
+                        else:
+                            session.add(UserActivity(
+                                guild_id=guild_id, user_id=user_id,
+                                date=today, message_count=count
+                            ))
                 self.daily_stats[guild_id].clear()
             session.commit()
         finally:
@@ -85,14 +91,14 @@ class Statistics(commands.Cog):
             else:
                 start_date = datetime.datetime(2020, 1, 1)
                 title = "📊 Most Active All Time"
-            messages = session.query(MessageLog).filter(
+            from sqlalchemy import func
+            results = session.query(
+                MessageLog.user_id, func.count(MessageLog.id)
+            ).filter(
                 MessageLog.guild_id == interaction.guild.id,
                 MessageLog.created_at >= start_date
-            ).all()
-            user_counts = defaultdict(int)
-            for msg in messages:
-                user_counts[msg.user_id] += 1
-            sorted_users = sorted(user_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+            ).group_by(MessageLog.user_id).order_by(func.count(MessageLog.id).desc()).limit(10).all()
+            sorted_users = [(r[0], r[1]) for r in results]
             embed = discord.Embed(title=title, color=discord.Color(color_int))
             if not sorted_users:
                 embed.description = "No activity data yet"

@@ -93,8 +93,10 @@ def _get_conversation_key(channel_id: int, guild_id: int | None = None) -> str:
     return f"dm:{channel_id}"
 
 
+_ai_cleanup_counter = 0
+
 async def _get_ai_response(conv_key: str, message_text: str) -> str | None:
-    global client
+    global client, _ai_cleanup_counter
     ai_token = os.getenv("AI_TOKEN")
     if ai_token and (not client or client.api_key != ai_token):
         client = OpenAI(
@@ -103,6 +105,13 @@ async def _get_ai_response(conv_key: str, message_text: str) -> str | None:
         )
     if not client or not client.api_key or client.api_key == "your_openrouter_token_here":
         return None
+
+    _ai_cleanup_counter += 1
+    if _ai_cleanup_counter % 100 == 0:
+        limit = len(conversation_history) - 500
+        if limit > 0:
+            for k in list(conversation_history.keys())[:limit]:
+                del conversation_history[k]
 
     if conv_key not in conversation_history:
         conversation_history[conv_key] = []
@@ -141,7 +150,6 @@ async def _send_long(ctx_or_interaction, content: str, is_slash: bool = False):
     if is_slash and hasattr(ctx_or_interaction, "followup"):
         if len(content) > 1900:
             chunks = [content[i:i+1900] for i in range(0, len(content), 1900)]
-            await ctx_or_interaction.response.defer(ephemeral=True)
             for chunk in chunks:
                 await ctx_or_interaction.followup.send(chunk)
                 await asyncio.sleep(0.5)
@@ -211,13 +219,9 @@ class AIChat(commands.Cog):
             return
 
         guild_id = None
-        for guild in self.bot.guilds:
-            for member in guild.members:
-                if member.id == message.author.id:
-                    guild_id = guild.id
-                    break
-            if guild_id:
-                break
+        mutual = message.author.mutual_guilds
+        if mutual:
+            guild_id = mutual[0].id
 
         if guild_id:
             config = self._get_config(guild_id)
@@ -294,7 +298,7 @@ class AIChat(commands.Cog):
         self,
         interaction: discord.Interaction,
         action: app_commands.Choice[str],
-        channel: discord.TextChannel | None = None,
+        channel: Optional[discord.TextChannel] = None,
     ):
         if not interaction.guild:
             return

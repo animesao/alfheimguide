@@ -81,11 +81,15 @@ class Welcome(commands.Cog):
                    .replace("\\n", "\n")
 
     def _get_join_position(self, guild: discord.Guild, member: discord.Member) -> int:
+        if not member.joined_at:
+            return guild.member_count
         pos = 1
-        for m in guild.members:
-            if m.joined_at and member.joined_at and m.joined_at < member.joined_at:
-                pos += 1
-        return pos
+        if len(guild.members) < 5000:
+            for m in guild.members:
+                if m.joined_at and m.joined_at < member.joined_at:
+                    pos += 1
+            return pos
+        return guild.member_count
 
     def _build_default_welcome(self, member: discord.Member, config, lang: str) -> discord.Embed:
         embed_color = int(config.embed_color) if config and config.embed_color else 0x5865F2

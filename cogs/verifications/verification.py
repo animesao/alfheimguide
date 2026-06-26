@@ -280,6 +280,24 @@ VERIFICATION_PRESETS = {
     },
 }
 
+async def _execute_verify(btn, interaction: discord.Interaction):
+    session = SessionLocal()
+    try:
+        role = (
+            discord.utils.get(interaction.guild.roles, id=int(btn.action_value))
+            if btn.action_value
+            else None
+        )
+        if role and role not in interaction.user.roles:
+            await interaction.user.add_roles(role)
+        await interaction.response.send_message(
+            "✅ Верификация пройдена!", ephemeral=True
+        )
+    except Exception:
+        pass
+    finally:
+        session.close()
+
 
 class CaptchaModal(ui.Modal, title="🔐 Верификация"):
     captcha_answer = ui.TextInput(
@@ -299,7 +317,7 @@ class CaptchaModal(ui.Modal, title="🔐 Верификация"):
 
     async def on_submit(self, interaction: discord.Interaction):
         if self.captcha_answer.value.strip() == self.correct_answer.strip():
-            await self.execute_verification(interaction)
+            await _execute_verify(self.button_config, interaction)
         else:
             await interaction.response.send_message(
                 "❌ Неверный код! Попробуйте ещё раз.", ephemeral=True
@@ -324,7 +342,7 @@ class NumberCaptchaModal(ui.Modal, title="🔢 Решите пример"):
 
     async def on_submit(self, interaction: discord.Interaction):
         if self.answer.value.strip() == self.correct:
-            await self.execute_verification(interaction)
+            await _execute_verify(self.button_config, interaction)
         else:
             await interaction.response.send_message(
                 f"❌ Неверно! Правильный ответ: {self.correct}", ephemeral=True
@@ -345,7 +363,15 @@ class VerificationSelect(ui.Select):
         self.config_id = config_id
 
     async def callback(self, interaction: discord.Interaction):
-        await self.execute_verification(interaction)
+        session = SessionLocal()
+        try:
+            btn = session.query(VerificationButton).filter_by(
+                button_id=self.config_id
+            ).first()
+            if btn:
+                await _execute_verify(btn, interaction)
+        finally:
+            session.close()
 
 
 class CustomButton(ui.Button):
@@ -672,27 +698,7 @@ class CustomButton(ui.Button):
         )
 
     async def execute_verification(self, interaction: discord.Interaction):
-        btn = self.button_config
-        session = SessionLocal()
-
-        try:
-            role = (
-                discord.utils.get(interaction.guild.roles, id=int(btn.action_value))
-                if btn.action_value
-                else None
-            )
-            if role and role not in interaction.user.roles:
-                await interaction.user.add_roles(role)
-
-            await interaction.response.send_message(
-                "✅ Верификация пройдена!", ephemeral=True
-            )
-        except Exception as e:
-            await interaction.response.send_message(
-                f"✅ Действие выполнено!", ephemeral=True
-            )
-        finally:
-            session.close()
+        await _execute_verify(self.button_config, interaction)
 
 
 class ConfirmActionView(ui.View):

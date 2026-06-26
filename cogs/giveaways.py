@@ -135,8 +135,11 @@ class Giveaways(commands.Cog):
             ).all()
 
             for giveaway in ended:
-                await self.end_giveaway(giveaway, session)
-        except:
+                try:
+                    await self.end_giveaway(giveaway, session)
+                except Exception as e:
+                    pass
+        except Exception as e:
             pass
         finally:
             session.close()

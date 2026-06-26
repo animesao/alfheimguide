@@ -101,9 +101,10 @@ class TicketReasonModal(ui.Modal):
         await interaction.response.defer(ephemeral=True)
         guild = interaction.guild
         member = interaction.user
-        category = discord.utils.get(guild.categories, name="Тикеты")
+        cat_name = "Тикеты" if guild.preferred_locale and guild.preferred_locale.startswith("ru") else "Tickets"
+        category = discord.utils.get(guild.categories, name=cat_name)
         if not category:
-            category = await guild.create_category("Тикеты")
+            category = await guild.create_category(cat_name)
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             member: discord.PermissionOverwrite(read_messages=True, send_messages=True, embed_links=True, attach_files=True),
@@ -130,7 +131,8 @@ class TicketDropdown(ui.Select):
         self.embed_color = embed_color
 
     async def callback(self, interaction: discord.Interaction):
-        with SessionLocal() as session:
+        session = SessionLocal()
+        try:
             category_config = session.query(TicketCategory).filter_by(
                 guild_id=interaction.guild_id, 
                 name=self.values[0]
@@ -146,6 +148,8 @@ class TicketDropdown(ui.Select):
                 )
             else:
                 modal = TicketReasonModal(self.values[0], self.embed_color)
+        finally:
+            session.close()
                 
         await interaction.response.send_modal(modal)
 
@@ -156,7 +160,8 @@ class TicketButton(ui.Button):
         self.embed_color = embed_color
 
     async def callback(self, interaction: discord.Interaction):
-        with SessionLocal() as session:
+        session = SessionLocal()
+        try:
             category_config = session.query(TicketCategory).filter_by(
                 guild_id=interaction.guild_id, 
                 name=self.label
@@ -172,6 +177,8 @@ class TicketButton(ui.Button):
                 )
             else:
                 modal = TicketReasonModal(self.label, self.embed_color)
+        finally:
+            session.close()
                 
         await interaction.response.send_modal(modal)
 
@@ -189,7 +196,6 @@ class TicketPersistentView(ui.View):
 class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bot.add_view(TicketControlView())
 
     @app_commands.command(name="ticket_setup", description="Настроить систему тикетов")
     @app_commands.checks.has_permissions(administrator=True)
@@ -220,14 +226,16 @@ class Tickets(commands.Cog):
         cat_list = [c.strip() for c in categories.split(',')]
         mode = style.value if style else "dropdown"
         
-        # Save categories to DB if they don't exist
-        with SessionLocal() as session:
+        session = SessionLocal()
+        try:
             for cat_name in cat_list:
                 exists = session.query(TicketCategory).filter_by(guild_id=interaction.guild_id, name=cat_name).first()
                 if not exists:
                     new_cat = TicketCategory(guild_id=interaction.guild_id, name=cat_name)
                     session.add(new_cat)
             session.commit()
+        finally:
+            session.close()
 
         if custom_color:
             try:
@@ -254,7 +262,8 @@ class Tickets(commands.Cog):
                                     modal_title: Optional[str] = None,
                                     modal_label: Optional[str] = None,
                                     modal_placeholder: Optional[str] = None):
-        with SessionLocal() as session:
+        session = SessionLocal()
+        try:
             cat = session.query(TicketCategory).filter_by(guild_id=interaction.guild_id, name=category_name).first()
             if not cat:
                 cat = TicketCategory(guild_id=interaction.guild_id, name=category_name)
@@ -265,6 +274,8 @@ class Tickets(commands.Cog):
             if modal_placeholder: cat.modal_placeholder = modal_placeholder
             
             session.commit()
+        finally:
+            session.close()
             await interaction.response.send_message(f"✅ Настройки для категории `{category_name}` обновлены.", ephemeral=True)
 
     @app_commands.command(name="ticket_color", description="Изменить цвет текущего тикета")

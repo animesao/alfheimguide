@@ -80,7 +80,7 @@ class Moderation(commands.Cog):
             if violation and config:
                 await message.delete()
                 if action == 'mute':
-                    dur = automod.spam_mute_duration or 5
+                    dur = getattr(automod, 'spam_mute_duration', None) or 5
                     await message.author.timeout(datetime.timedelta(minutes=dur), reason=reason)
                 elif action == 'kick':
                     await message.author.kick(reason=reason)

@@ -49,6 +49,8 @@ class Anime(commands.Cog):
             await self.session.close()
 
     async def fetch_anime_image(self) -> str | None:
+        if not self.session:
+            self.session = aiohttp.ClientSession()
         sources = list(ANIME_API_SOURCES)
         random.shuffle(sources)
 

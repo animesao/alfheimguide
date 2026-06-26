@@ -235,14 +235,16 @@ class VoiceChannels(commands.Cog):
         try:
             empty = session.query(TempVoiceChannel).all()
             for tc in empty:
-                channel = self.bot.get_channel(tc.channel_id)
-                if channel:
-                    if len(channel.members) == 0 and tc.channel_id in self.active_controls:
-                        del self.active_controls[tc.channel_id]
+                try:
+                    channel = self.bot.get_channel(tc.channel_id)
+                    if channel and len(channel.members) == 0:
+                        self.active_controls.pop(tc.channel_id, None)
                         await channel.delete()
                         session.delete(tc)
+                except Exception:
+                    pass
             session.commit()
-        except:
+        except Exception:
             pass
         finally:
             session.close()
@@ -337,12 +339,11 @@ class VoiceChannels(commands.Cog):
             session = SessionLocal()
             try:
                 tc = session.query(TempVoiceChannel).filter_by(channel_id=before.channel.id).first()
-                if tc and before.channel.id in self.active_controls:
-                    if len(before.channel.members) == 0:
-                        del self.active_controls[before.channel.id]
-                        await before.channel.delete()
-                        session.delete(tc)
-                        session.commit()
+                if tc and len(before.channel.members) == 0:
+                    self.active_controls.pop(before.channel.id, None)
+                    await before.channel.delete()
+                    session.delete(tc)
+                    session.commit()
             finally:
                 session.close()
 

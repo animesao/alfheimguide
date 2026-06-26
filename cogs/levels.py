@@ -3,7 +3,7 @@ import random
 import asyncio
 import math
 from datetime import datetime, timezone
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands, ui
 from database import SessionLocal, UserLevel, LevelConfig, GuildConfig
 from typing import Optional
@@ -171,6 +171,14 @@ class Levels(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.xp_cooldowns = {}
+        self.cleanup_cooldowns.start()
+
+    def cog_unload(self):
+        self.cleanup_cooldowns.cancel()
+
+    @tasks.loop(hours=1)
+    async def cleanup_cooldowns(self):
+        self.xp_cooldowns.clear()
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
