@@ -51,7 +51,7 @@ def _get_msg(guild_id: int | None, key: str, **kwargs) -> str:
             "ai_status_enabled": "Включён",
             "ai_status_disabled": "Выключен",
             "ai_reset": "🧹 История беседы очищена!",
-            "ai_help": "**🤖 AI Помощник (Nemotron 30B):**\nНапишите сообщение в настроенном канале или используйте `!ask [сообщение]`\n`!clear` - очистить историю\n`/ai` - настройка AI",
+            "ai_help": "**🤖 AI Помощник (Nemotron 30B):**\nНапишите сообщение в настроенном канале или используйте `!ask [сообщение]`\n`!clear` — очистить историю\n`/ai ask` — спросить AI\n`/ai channel` — управление каналами\n`/ai toggle` — вкл/выкл авто-ответ и ЛС\n`/ai reset` — сбросить историю\n`/help` — все команды бота",
             "ai_thinking": "🤔 Думаю...",
         },
         "en": {
@@ -75,7 +75,7 @@ def _get_msg(guild_id: int | None, key: str, **kwargs) -> str:
             "ai_status_enabled": "Enabled",
             "ai_status_disabled": "Disabled",
             "ai_reset": "🧹 Conversation history cleared!",
-            "ai_help": "**🤖 AI Assistant (Nemotron 30B):**\nSend a message in a configured channel or use `!ask [message]`\n`!clear` - clear history\n`/ai` - AI settings",
+            "ai_help": "**🤖 AI Assistant (Nemotron 30B):**\nSend a message in a configured channel or use `!ask [message]`\n`!clear` — clear history\n`/ai ask` — ask AI\n`/ai channel` — manage channels\n`/ai toggle` — toggle auto-respond & DMs\n`/ai reset` — reset history\n`/help` — all bot commands",
             "ai_thinking": "🤔 Thinking...",
         },
     }
