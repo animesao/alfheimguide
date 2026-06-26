@@ -306,7 +306,8 @@ class Moderation(commands.Cog):
                 gc.automod_action = spam_action
                 gc.mute_duration = mute_minutes
             session.commit()
-            await interaction.response.send_message(get_msg(interaction.guild.id, 'automod_updated', enabled=enabled, anti_links=anti_links, action=spam_action))
+            on_off = lambda v: get_msg(interaction.guild.id, 'enabled' if v else 'disabled')
+            await interaction.response.send_message(get_msg(interaction.guild.id, 'automod_updated', enabled=on_off(enabled), anti_links=on_off(anti_links), action=spam_action))
         finally:
             session.close()
 

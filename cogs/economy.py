@@ -418,7 +418,6 @@ class Economy(commands.Cog):
         session = SessionLocal()
         try:
             config = session.query(GuildConfig).filter_by(guild_id=interaction.guild.id).first()
-            from sqlalchemy import desc
             users = session.query(UserEconomy).filter_by(guild_id=interaction.guild.id).order_by(desc(UserEconomy.balance + UserEconomy.bank)).limit(10).all()
             
             color_int = int(config.embed_color) if config and config.embed_color else 0x3498db

@@ -341,7 +341,10 @@ class VoiceChannels(commands.Cog):
                 tc = session.query(TempVoiceChannel).filter_by(channel_id=before.channel.id).first()
                 if tc and len(before.channel.members) == 0:
                     self.active_controls.pop(before.channel.id, None)
-                    await before.channel.delete()
+                    try:
+                        await before.channel.delete()
+                    except:
+                        pass
                     session.delete(tc)
                     session.commit()
             finally:

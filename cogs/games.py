@@ -4,8 +4,6 @@ from discord import app_commands
 import random
 from collections import deque
 from typing import Optional, Dict, Tuple
-from database import SessionLocal, GuildConfig
-
 NUM_EMOJIS = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"]
 
 class MinesweeperGame:
@@ -169,21 +167,8 @@ class Games(commands.Cog):
         self.active_games: Dict[str, dict] = {}
 
     def get_msg(self, guild_id: int, key: str, **kwargs) -> str:
-        session = SessionLocal()
-        try:
-            config = session.query(GuildConfig).filter_by(guild_id=guild_id).first()
-            lang = str(config.language) if config and config.language else 'ru'
-            messages = self.bot.MESSAGES.get(lang, self.bot.MESSAGES['ru'])
-            msg_template = messages.get(key, key)
-            try:
-                return msg_template.format(**kwargs)
-            except KeyError:
-                return msg_template
-        except Exception as e:
-            print(f"Error getting message: {e}")
-            return key
-        finally:
-            session.close()
+        from main import get_msg as main_get_msg
+        return main_get_msg(guild_id, key, **kwargs)
 
     @app_commands.command(name="minesweeper", description="Start a Minesweeper game")
     async def minesweeper(self, interaction: discord.Interaction):

@@ -281,7 +281,6 @@ VERIFICATION_PRESETS = {
 }
 
 async def _execute_verify(btn, interaction: discord.Interaction):
-    session = SessionLocal()
     try:
         role = (
             discord.utils.get(interaction.guild.roles, id=int(btn.action_value))
@@ -295,8 +294,6 @@ async def _execute_verify(btn, interaction: discord.Interaction):
         )
     except Exception:
         pass
-    finally:
-        session.close()
 
 
 class CaptchaModal(ui.Modal, title="🔐 Верификация"):
