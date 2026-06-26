@@ -4,7 +4,7 @@ import datetime
 from discord.ext import commands
 from discord import app_commands, ui
 from database import SessionLocal, GuildConfig, Warning, TempBan, AutoModConfig
-from typing import Optional
+from typing import Optional, Union
 
 
 def get_msg(guild_id: int, key: str, **kwargs) -> str:
@@ -16,9 +16,9 @@ class Moderation(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def send_dm_safe(self, member: discord.Member, embed: discord.Embed):
+    async def send_dm_safe(self, user: Union[discord.Member, discord.User], embed: discord.Embed):
         try:
-            await member.send(embed=embed)
+            await user.send(embed=embed)
         except:
             pass
 
@@ -107,10 +107,14 @@ class Moderation(commands.Cog):
     ])
     async def kick_slash(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason", silent: bool = False):
         if not interaction.guild: return
-        embed = discord.Embed(title=get_msg(interaction.guild.id, 'kicked'), description=get_msg(interaction.guild.id, 'dm_kick', server=interaction.guild.name, reason=reason), color=discord.Color.orange())
-        if not silent:
-            await self.send_dm_safe(member, embed)
         await member.kick(reason=reason)
+        if not silent:
+            embed = discord.Embed(
+                title=get_msg(interaction.guild.id, 'kicked'),
+                description=get_msg(interaction.guild.id, 'dm_kick', server=interaction.guild.name, reason=reason),
+                color=discord.Color.orange(),
+            )
+            await self.send_dm_safe(member, embed)
         log_embed = discord.Embed(title="Member Kicked", color=discord.Color.orange(), timestamp=datetime.datetime.now(datetime.timezone.utc))
         log_embed.add_field(name="User", value=f"{member} ({member.id})")
         log_embed.add_field(name="Moderator", value=str(interaction.user))
@@ -129,10 +133,14 @@ class Moderation(commands.Cog):
     ])
     async def ban_slash(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason", delete_messages_days: int = 0, silent: bool = False):
         if not interaction.guild: return
-        embed = discord.Embed(title=get_msg(interaction.guild.id, 'banned'), description=get_msg(interaction.guild.id, 'dm_ban', server=interaction.guild.name, reason=reason), color=discord.Color.red())
-        if not silent:
-            await self.send_dm_safe(member, embed)
         await member.ban(reason=reason, delete_message_days=min(delete_messages_days, 7))
+        if not silent:
+            embed = discord.Embed(
+                title=get_msg(interaction.guild.id, 'banned'),
+                description=get_msg(interaction.guild.id, 'dm_ban', server=interaction.guild.name, reason=reason),
+                color=discord.Color.red(),
+            )
+            await self.send_dm_safe(member, embed)
         log_embed = discord.Embed(title="Member Banned", color=discord.Color.red(), timestamp=datetime.datetime.now(datetime.timezone.utc))
         log_embed.add_field(name="User", value=f"{member} ({member.id})")
         log_embed.add_field(name="Moderator", value=str(interaction.user))
@@ -147,6 +155,12 @@ class Moderation(commands.Cog):
         if not interaction.guild: return
         user = await self.bot.fetch_user(int(user_id))
         await interaction.guild.unban(user, reason=reason)
+        dm_embed = discord.Embed(
+            title="Unbanned",
+            description=get_msg(interaction.guild.id, 'dm_unban', server=interaction.guild.name, reason=reason),
+            color=discord.Color.green(),
+        )
+        await self.send_dm_safe(user, dm_embed)
         log_embed = discord.Embed(title="Member Unbanned", color=discord.Color.green(), timestamp=datetime.datetime.now(datetime.timezone.utc))
         log_embed.add_field(name="User", value=f"{user} ({user_id})")
         log_embed.add_field(name="Moderator", value=str(interaction.user))
@@ -160,7 +174,11 @@ class Moderation(commands.Cog):
         if not interaction.guild: return
         duration = datetime.timedelta(minutes=minutes)
         await member.timeout(duration, reason=reason)
-        embed = discord.Embed(title=get_msg(interaction.guild.id, 'muted'), description=get_msg(interaction.guild.id, 'dm_mute', server=interaction.guild.name, minutes=minutes, reason=reason), color=discord.Color.light_gray())
+        embed = discord.Embed(
+            title=get_msg(interaction.guild.id, 'muted'),
+            description=get_msg(interaction.guild.id, 'dm_mute', server=interaction.guild.name, minutes=minutes, reason=reason),
+            color=discord.Color.light_gray(),
+        )
         await self.send_dm_safe(member, embed)
         log_embed = discord.Embed(title="Member Muted", color=discord.Color.light_gray(), timestamp=datetime.datetime.now(datetime.timezone.utc))
         log_embed.add_field(name="User", value=f"{member} ({member.id})")
@@ -175,6 +193,16 @@ class Moderation(commands.Cog):
     async def unmute_slash(self, interaction: discord.Interaction, member: discord.Member):
         if not interaction.guild: return
         await member.timeout(None)
+        dm_embed = discord.Embed(
+            title=get_msg(interaction.guild.id, 'unmuted'),
+            description=get_msg(interaction.guild.id, 'dm_unmute', server=interaction.guild.name),
+            color=discord.Color.green(),
+        )
+        await self.send_dm_safe(member, dm_embed)
+        log_embed = discord.Embed(title="Member Unmuted", color=discord.Color.green(), timestamp=datetime.datetime.now(datetime.timezone.utc))
+        log_embed.add_field(name="User", value=f"{member} ({member.id})")
+        log_embed.add_field(name="Moderator", value=str(interaction.user))
+        await self.log_mod_action(interaction.guild, log_embed)
         await interaction.response.send_message(get_msg(interaction.guild.id, 'unmute_success', member=member.mention))
 
     @app_commands.command(name="warn", description="Warns a member")
@@ -186,7 +214,11 @@ class Moderation(commands.Cog):
             warn = Warning(guild_id=interaction.guild.id, user_id=member.id, reason=reason, moderator_id=interaction.user.id, timestamp=datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None))
             session.add(warn)
             session.commit()
-            dm_embed = discord.Embed(title=get_msg(interaction.guild.id, 'warned'), description=get_msg(interaction.guild.id, 'dm_warn', server=interaction.guild.name, reason=reason), color=discord.Color.yellow())
+            dm_embed = discord.Embed(
+                title=get_msg(interaction.guild.id, 'warned'),
+                description=get_msg(interaction.guild.id, 'dm_warn', server=interaction.guild.name, reason=reason),
+                color=discord.Color.yellow(),
+            )
             await self.send_dm_safe(member, dm_embed)
             await interaction.response.send_message(get_msg(interaction.guild.id, 'warn_success', member=member.mention, reason=reason))
         finally:
@@ -225,9 +257,13 @@ class Moderation(commands.Cog):
             new_tempban = TempBan(guild_id=interaction.guild.id, user_id=member.id, unban_time=unban_time, reason=reason)
             session.add(new_tempban)
             session.commit()
-            embed = discord.Embed(title=get_msg(interaction.guild.id, 'banned'), description=get_msg(interaction.guild.id, 'dm_ban', server=interaction.guild.name, reason=reason), color=discord.Color.red())
-            await self.send_dm_safe(member, embed)
             await member.ban(reason=reason)
+            embed = discord.Embed(
+                title=get_msg(interaction.guild.id, 'banned'),
+                description=get_msg(interaction.guild.id, 'dm_ban', server=interaction.guild.name, reason=reason),
+                color=discord.Color.red(),
+            )
+            await self.send_dm_safe(member, embed)
             await interaction.response.send_message(get_msg(interaction.guild.id, 'tempban_success', member=member.mention, duration=duration))
         finally:
             session.close()

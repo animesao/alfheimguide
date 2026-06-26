@@ -62,6 +62,7 @@ MESSAGES = {
         "banned": "Забанен",
         "unbanned": "Разбанен",
         "muted": "Таймаут",
+        "unmuted": "Размьючен",
         "warned": "Предупреждение",
         "kick_success": "✅ {member} исключен.",
         "ban_success": "✅ {member} забанен.",
@@ -82,6 +83,8 @@ MESSAGES = {
         "dm_kick": "Вы были исключены из **{server}**\nПричина: {reason}",
         "dm_ban": "Вы были забанены на **{server}**\nПричина: {reason}",
         "dm_mute": "Вам был выдан таймаут в **{server}** на {minutes} мин.\nПричина: {reason}",
+        "dm_unmute": "С вас снят таймаут на **{server}**",
+        "dm_unban": "Вы были разбанены на **{server}**\nПричина: {reason}",
         "dm_warn": "Вы получили предупреждение в **{server}**\nПричина: {reason}",
         "automod_bad_words": "⚠️ {user}, следите за языком!",
         "automod_links": "⚠️ {user}, ссылки запрещены!",
@@ -142,6 +145,7 @@ MESSAGES = {
         "banned": "Banned",
         "unbanned": "Unbanned",
         "muted": "Muted",
+        "unmuted": "Unmuted",
         "warned": "Warned",
         "kick_success": "✅ {member} kicked.",
         "ban_success": "✅ {member} banned.",
@@ -162,6 +166,8 @@ MESSAGES = {
         "dm_kick": "You were kicked from **{server}**\nReason: {reason}",
         "dm_ban": "You were banned from **{server}**\nReason: {reason}",
         "dm_mute": "You were muted in **{server}** for {minutes}m.\nReason: {reason}",
+        "dm_unmute": "You were unmuted in **{server}**",
+        "dm_unban": "You were unbanned from **{server}**\nReason: {reason}",
         "dm_warn": "You were warned in **{server}**\nReason: {reason}",
         "automod_bad_words": "⚠️ {user}, watch your language!",
         "automod_links": "⚠️ {user}, links are not allowed!",
@@ -273,6 +279,15 @@ async def check_temp_bans():
                             await channel.send(
                                 get_msg(guild.id, "unbanned_auto", user=user.name)
                             )
+                    try:
+                        dm = discord.Embed(
+                            title=get_msg(guild.id, "unbanned"),
+                            description=get_msg(guild.id, "dm_unban", server=guild.name, reason="Tempban expired"),
+                            color=discord.Color.green(),
+                        )
+                        await user.send(embed=dm)
+                    except:
+                        pass
                 except Exception as e:
                     logger.error(f"Error unbanning user {ban.user_id}: {e}")
             session.delete(ban)
