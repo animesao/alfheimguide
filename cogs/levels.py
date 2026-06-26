@@ -2,11 +2,15 @@ import discord
 import random
 import asyncio
 import math
+import time
+import logging
 from datetime import datetime, timezone
 from discord.ext import commands, tasks
 from discord import app_commands, ui
 from database import SessionLocal, UserLevel, LevelConfig, GuildConfig
 from typing import Optional
+
+logger = logging.getLogger("alfheim_bot.levels")
 
 
 def get_msg(guild_id: int, key: str, **kwargs) -> str:
@@ -171,6 +175,9 @@ class Levels(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.xp_cooldowns = {}
+        self._lvl_cache = {}
+        self._gc_cache = {}
+        self._cache_ttl = 60
         self.cleanup_cooldowns.start()
 
     def cog_unload(self):
@@ -180,18 +187,32 @@ class Levels(commands.Cog):
     async def cleanup_cooldowns(self):
         self.xp_cooldowns.clear()
 
+    def _get_configs(self, guild_id: int):
+        now = time.time()
+        if guild_id in self._lvl_cache and guild_id in self._gc_cache:
+            lvl_cached, lvl_ts = self._lvl_cache[guild_id]
+            gc_cached, gc_ts = self._gc_cache[guild_id]
+            if now - min(lvl_ts, gc_ts) < self._cache_ttl:
+                return lvl_cached, gc_cached
+        session = SessionLocal()
+        try:
+            config = session.query(LevelConfig).filter_by(guild_id=guild_id).first()
+            guild_config = session.query(GuildConfig).filter_by(guild_id=guild_id).first()
+            self._lvl_cache[guild_id] = (config, now)
+            self._gc_cache[guild_id] = (guild_config, now)
+            return config, guild_config
+        finally:
+            session.close()
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.author.bot or not message.guild:
             return
+        config, guild_config = self._get_configs(message.guild.id)
+        if not config or not config.enabled or not guild_config or not guild_config.levels_enabled:
+            return
         session = SessionLocal()
         try:
-            config = session.query(LevelConfig).filter_by(guild_id=message.guild.id).first()
-            if not config or not config.enabled:
-                return
-            guild_config = session.query(GuildConfig).filter_by(guild_id=message.guild.id).first()
-            if not guild_config or not guild_config.levels_enabled:
-                return
 
             user_key = f"{message.guild.id}_{message.author.id}"
             now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -231,8 +252,8 @@ class Levels(commands.Cog):
                 session.commit()
 
             self.xp_cooldowns[user_key] = now
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"xp error g={message.guild.id} u={message.author.id}: {e}")
         finally:
             session.close()
 
@@ -264,7 +285,7 @@ class Levels(commands.Cog):
                                 if old_role and old_role in message.author.roles:
                                     await message.author.remove_roles(old_role)
                         await message.author.add_roles(role)
-                except:
+                except Exception:
                     pass
 
     @app_commands.command(name="rank", description="Shows your current level and rank")
@@ -297,9 +318,20 @@ class Levels(commands.Cog):
             mult = config.level_multiplier if config else 1.5
             next_xp = calc_level_xp(level, base, mult)
 
-            all_users = session.query(UserLevel).filter_by(guild_id=interaction.guild.id).all()
-            sorted_users = sorted(all_users, key=lambda u: (u.level or 1, u.xp or 0), reverse=True)
-            rank = next((i + 1 for i, u in enumerate(sorted_users) if u.user_id == target.id), 0)
+            from sqlalchemy import func, and_, or_
+            rank = session.query(func.count(UserLevel.user_id)).filter(
+                and_(
+                    UserLevel.guild_id == interaction.guild.id,
+                    UserLevel.user_id != target.id,
+                    or_(
+                        UserLevel.level > (user_lvl.level or 1),
+                        and_(
+                            UserLevel.level == (user_lvl.level or 1),
+                            UserLevel.xp > (user_lvl.xp or 0)
+                        )
+                    )
+                )
+            ).scalar() + 1
 
             embed = discord.Embed(
                 title=f"📊 {target.display_name}",
@@ -378,8 +410,8 @@ class Levels(commands.Cog):
                     user_lvl.xp = (user_lvl.xp or 0) + minutes * config.xp_per_voice_minute
                 user_lvl.last_voice_update = None
                 session.commit()
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"voice xp error g={member.guild.id} u={member.id}: {e}")
         finally:
             session.close()
 

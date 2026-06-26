@@ -90,8 +90,8 @@ class AdvancedModeration(commands.Cog):
                     await message.author.timeout(datetime.timedelta(minutes=5), reason="Spam detected")
                     await message.channel.send(f"⚠️ {message.author.mention} muted for spam (5m)", delete_after=5)
                     self.spam_tracker[user_key] = []
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Spam action failed for {message.author}: {e}")
 
     @commands.Cog.listener()
     async def on_message_delete(self, message: discord.Message):
@@ -254,7 +254,7 @@ class AdvancedModeration(commands.Cog):
                         reporter = await self.bot.fetch_user(r.reporter_id)
                         reported = await self.bot.fetch_user(r.reported_user_id)
                         embed.add_field(name=f"Report #{r.id}", value=f"**Reporter:** {reporter.mention}\n**Reported:** {reported.mention}\n**Reason:** {r.reason}\n**Time:** <t:{int(r.created_at.timestamp())}:R>", inline=False)
-                    except: continue
+                    except Exception: continue
             await interaction.response.send_message(embed=embed)
         finally:
             session.close()
@@ -286,7 +286,7 @@ class AdvancedModeration(commands.Cog):
                 user = await self.bot.fetch_user(int(uid))
                 await interaction.guild.ban(user, reason=reason)
                 banned += 1
-            except: failed += 1
+            except Exception: failed += 1
         await interaction.followup.send(f"✅ Massban: {banned} banned, {failed} failed")
 
     @app_commands.command(name="masskick", description="Kick multiple users by ID")
@@ -305,7 +305,7 @@ class AdvancedModeration(commands.Cog):
                     await member.kick(reason=reason)
                     kicked += 1
                 else: failed += 1
-            except: failed += 1
+            except Exception: failed += 1
         await interaction.followup.send(f"✅ Masskick: {kicked} kicked, {failed} failed")
 
     @app_commands.command(name="raid_protection", description="Configure raid protection")
@@ -347,7 +347,7 @@ class AdvancedModeration(commands.Cog):
                     try:
                         mod = await self.bot.fetch_user(w.moderator_id)
                         embed.add_field(name=f"Warning #{w.id}", value=f"**Reason:** {w.reason}\n**Mod:** {mod.mention}\n**Time:** <t:{int(w.timestamp.timestamp())}:R>", inline=False)
-                    except: continue
+                    except Exception: continue
             embed.set_footer(text=f"Total: {len(warns)} warnings")
             await interaction.response.send_message(embed=embed)
         finally:

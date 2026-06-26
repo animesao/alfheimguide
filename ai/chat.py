@@ -103,7 +103,7 @@ async def _get_ai_response(conv_key: str, message_text: str) -> str | None:
             base_url="https://openrouter.ai/api/v1",
             api_key=ai_token,
         )
-    if not client or not client.api_key or client.api_key == "your_openrouter_token_here":
+    if not client or not client.api_key:
         return None
 
     _ai_cleanup_counter += 1

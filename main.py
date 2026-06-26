@@ -286,7 +286,7 @@ async def check_temp_bans():
                             color=discord.Color.green(),
                         )
                         await user.send(embed=dm)
-                    except:
+                    except Exception:
                         pass
                 except Exception as e:
                     logger.error(f"Error unbanning user {ban.user_id}: {e}")
@@ -678,7 +678,7 @@ async def version_slash(interaction: discord.Interaction):
         try:
             date_obj = datetime.strptime(release_date, "%Y-%m-%d")
             formatted_date = date_obj.strftime("%B %d, %Y")
-        except:
+        except Exception:
             formatted_date = release_date
 
         embed = discord.Embed(
@@ -755,7 +755,7 @@ async def add_user_slash(interaction: discord.Interaction, github_username: str)
         try:
             github_user = await asyncio.to_thread(g.get_user, github_username)
             username_to_store = github_user.login
-        except:
+        except Exception:
             search_results = await asyncio.to_thread(g.search_users, github_username)
             if search_results.totalCount > 0:
                 github_user = search_results[0]

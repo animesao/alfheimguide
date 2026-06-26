@@ -475,7 +475,7 @@ class CustomButton(ui.Button):
                 dm_text = btn.dm_text or "Вы успешно прошли верификацию!"
                 try:
                     await interaction.user.send(dm_text)
-                except:
+                except Exception:
                     pass
                 await interaction.response.send_message(
                     "✅ Сообщение отправлено в ЛС!", ephemeral=True
@@ -488,7 +488,7 @@ class CustomButton(ui.Button):
                 )
                 try:
                     await interaction.user.send(welcome_text)
-                except:
+                except Exception:
                     pass
 
                 if action_value:
@@ -670,7 +670,7 @@ class CustomButton(ui.Button):
                                 label=role.name, value=rid, emoji=str(emoji)
                             )
                         )
-                except:
+                except Exception:
                     pass
 
         if not options:
@@ -1010,7 +1010,7 @@ class VerifyMainMenuView(ui.View):
                         interaction.guild_id, config.style or "buttons"
                     )
                     await message.edit(embed=embed, view=view)
-                except:
+                except Exception:
                     pass
         finally:
             session.close()
@@ -1048,7 +1048,7 @@ class VerifyMainMenuView(ui.View):
                             )
                             if role:
                                 role_info = f"\n**Роль:** {role.mention}"
-                        except:
+                        except Exception:
                             pass
                     embed.add_field(
                         name=f"{i}. {btn.emoji or ''} {btn.label}".strip(),
@@ -1243,7 +1243,7 @@ class VerifyMainSettingsModal(ui.Modal, title="📝 Основные настр�
             if self.channel_input.value:
                 try:
                     config.channel_id = int(self.channel_input.value)
-                except:
+                except Exception:
                     pass
             session.commit()
             await interaction.response.send_message("✅ Сохранено!", ephemeral=True)
@@ -1289,7 +1289,7 @@ class VerifyAppearanceModal(ui.Modal, title="🎨 Внешний вид"):
                 return
             try:
                 config.embed_color = int(self.color_input.value.replace("#", ""), 16)
-            except:
+            except Exception:
                 await interaction.response.send_message(
                     "❌ Неверный HEX!", ephemeral=True
                 )
@@ -1624,7 +1624,7 @@ class Verification(commands.Cog):
 
             try:
                 color_int = int(embed_color.replace("#", ""), 16)
-            except:
+            except Exception:
                 color_int = 0x3498DB
 
             config.channel_id = channel.id
@@ -1801,7 +1801,7 @@ class Verification(commands.Cog):
                 if role and role not in interaction.user.roles:
                     try:
                         await interaction.user.add_roles(role)
-                    except:
+                    except Exception:
                         pass
 
             session.commit()

@@ -344,7 +344,7 @@ class Economy(commands.Cog):
                     role = interaction.guild.get_role(int(item.item_value))
                     if role:
                         await interaction.user.add_roles(role)
-                except:
+                except Exception:
                     pass
             
             session.commit()
@@ -434,7 +434,7 @@ class Economy(commands.Cog):
                         total = user_eco.balance + user_eco.bank
                         medal = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
                         leaderboard_text += f"{medal} **{member.display_name}** - {total:,} coins\n"
-                except:
+                except Exception:
                     continue
             
             embed.description = leaderboard_text or "No data yet"

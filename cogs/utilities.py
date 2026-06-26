@@ -284,7 +284,7 @@ class Utilities(commands.Cog):
             try:
                 channel = self.bot.get_channel(poll.channel_id)
                 message = await channel.fetch_message(poll.message_id)
-            except:
+            except Exception:
                 await interaction.response.send_message("❌ Could not fetch poll message", ephemeral=True)
                 return
             

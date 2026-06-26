@@ -7,9 +7,10 @@ from typing import Optional, Dict
 
 
 class VoiceControlPanel(ui.View):
-    def __init__(self, channel_id: int):
+    def __init__(self, channel_id: int, lang: str = "ru"):
         super().__init__(timeout=None)
         self.channel_id = channel_id
+        self.lang = lang
 
     async def check_owner(self, interaction: discord.Interaction) -> bool:
         session = SessionLocal()
@@ -26,6 +27,9 @@ class VoiceControlPanel(ui.View):
         finally:
             session.close()
 
+    def _label(self, ru: str, en: str) -> str:
+        return ru if self.lang == "ru" else en
+
     @ui.button(label="🔒 Закрыть", style=discord.ButtonStyle.secondary, row=0)
     async def lock_channel(self, interaction: discord.Interaction, button: ui.Button):
         if not await self.check_owner(interaction): return
@@ -37,7 +41,7 @@ class VoiceControlPanel(ui.View):
                 tc = session.query(TempVoiceChannel).filter_by(channel_id=self.channel_id).first()
                 if tc: tc.is_locked = True; session.commit()
             finally: session.close()
-            await interaction.response.send_message("🔒 Канал закрыт.", ephemeral=True)
+            await interaction.response.send_message(self._label("🔒 Канал закрыт.", "🔒 Channel locked."), ephemeral=True)
 
     @ui.button(label="🔓 Открыть", style=discord.ButtonStyle.secondary, row=0)
     async def unlock_channel(self, interaction: discord.Interaction, button: ui.Button):
@@ -50,7 +54,7 @@ class VoiceControlPanel(ui.View):
                 tc = session.query(TempVoiceChannel).filter_by(channel_id=self.channel_id).first()
                 if tc: tc.is_locked = False; session.commit()
             finally: session.close()
-            await interaction.response.send_message("🔓 Канал открыт.", ephemeral=True)
+            await interaction.response.send_message(self._label("🔓 Канал открыт.", "🔓 Channel unlocked."), ephemeral=True)
 
     @ui.button(label="👁️ Скрыть", style=discord.ButtonStyle.secondary, row=0)
     async def hide_channel(self, interaction: discord.Interaction, button: ui.Button):
@@ -63,7 +67,7 @@ class VoiceControlPanel(ui.View):
                 tc = session.query(TempVoiceChannel).filter_by(channel_id=self.channel_id).first()
                 if tc: tc.is_hidden = True; session.commit()
             finally: session.close()
-            await interaction.response.send_message("👁️ Канал скрыт.", ephemeral=True)
+            await interaction.response.send_message(self._label("👁️ Канал скрыт.", "👁️ Channel hidden."), ephemeral=True)
 
     @ui.button(label="👀 Показать", style=discord.ButtonStyle.secondary, row=0)
     async def show_channel(self, interaction: discord.Interaction, button: ui.Button):
@@ -76,48 +80,48 @@ class VoiceControlPanel(ui.View):
                 tc = session.query(TempVoiceChannel).filter_by(channel_id=self.channel_id).first()
                 if tc: tc.is_hidden = False; session.commit()
             finally: session.close()
-            await interaction.response.send_message("👀 Канал виден.", ephemeral=True)
+            await interaction.response.send_message(self._label("👀 Канал виден.", "👀 Channel visible."), ephemeral=True)
 
     @ui.button(label="✏️ Переименовать", style=discord.ButtonStyle.primary, row=1)
     async def rename_channel(self, interaction: discord.Interaction, button: ui.Button):
         if not await self.check_owner(interaction): return
-        modal = RenameModal(self.channel_id)
+        modal = RenameModal(self.channel_id, self.lang)
         await interaction.response.send_modal(modal)
 
     @ui.button(label="👥 Лимит", style=discord.ButtonStyle.primary, row=1)
     async def set_limit(self, interaction: discord.Interaction, button: ui.Button):
         if not await self.check_owner(interaction): return
-        modal = LimitModal(self.channel_id)
+        modal = LimitModal(self.channel_id, self.lang)
         await interaction.response.send_modal(modal)
 
     @ui.button(label="➕ Пригласить", style=discord.ButtonStyle.success, row=1)
     async def invite_user(self, interaction: discord.Interaction, button: ui.Button):
         if not await self.check_owner(interaction): return
-        modal = UserActionModal(self.channel_id, "invite")
+        modal = UserActionModal(self.channel_id, "invite", self.lang)
         await interaction.response.send_modal(modal)
 
     @ui.button(label="➖ Выгнать", style=discord.ButtonStyle.danger, row=1)
     async def kick_user(self, interaction: discord.Interaction, button: ui.Button):
         if not await self.check_owner(interaction): return
-        modal = UserActionModal(self.channel_id, "kick")
+        modal = UserActionModal(self.channel_id, "kick", self.lang)
         await interaction.response.send_modal(modal)
 
     @ui.button(label="🚫 Забанить", style=discord.ButtonStyle.danger, row=2)
     async def ban_user(self, interaction: discord.Interaction, button: ui.Button):
         if not await self.check_owner(interaction): return
-        modal = UserActionModal(self.channel_id, "ban")
+        modal = UserActionModal(self.channel_id, "ban", self.lang)
         await interaction.response.send_modal(modal)
 
     @ui.button(label="👑 Передать", style=discord.ButtonStyle.primary, row=2)
     async def transfer_ownership(self, interaction: discord.Interaction, button: ui.Button):
         if not await self.check_owner(interaction): return
-        modal = UserActionModal(self.channel_id, "transfer")
+        modal = UserActionModal(self.channel_id, "transfer", self.lang)
         await interaction.response.send_modal(modal)
 
     @ui.button(label="🔊 Битрейт", style=discord.ButtonStyle.secondary, row=2)
     async def set_bitrate(self, interaction: discord.Interaction, button: ui.Button):
         if not await self.check_owner(interaction): return
-        modal = BitrateModal(self.channel_id)
+        modal = BitrateModal(self.channel_id, self.lang)
         await interaction.response.send_modal(modal)
 
 
@@ -146,7 +150,7 @@ class LimitModal(ui.Modal, title="Лимит участников"):
     async def on_submit(self, interaction: discord.Interaction):
         try:
             val = max(0, min(99, int(self.limit.value)))
-        except:
+        except Exception:
             await interaction.response.send_message("❌ Введите число!", ephemeral=True); return
         channel = interaction.guild.get_channel(self.channel_id)
         if channel:
@@ -167,7 +171,7 @@ class BitrateModal(ui.Modal, title="Битрейт (kbps)"):
     async def on_submit(self, interaction: discord.Interaction):
         try:
             val = max(8, min(384, int(self.bitrate.value)))
-        except:
+        except Exception:
             await interaction.response.send_message("❌ Введите число!", ephemeral=True); return
         channel = interaction.guild.get_channel(self.channel_id)
         if channel:
@@ -190,7 +194,7 @@ class UserActionModal(ui.Modal, title="Действие"):
             member = interaction.guild.get_member(int(uid))
             if not member:
                 member = await interaction.guild.fetch_member(int(uid))
-        except:
+        except Exception:
             await interaction.response.send_message("❌ Пользователь не найден!", ephemeral=True); return
 
         channel = interaction.guild.get_channel(self.channel_id)
@@ -317,19 +321,22 @@ class VoiceChannels(commands.Cog):
                     session.commit()
 
                     if config.send_panel_on_create:
+                        gc = session.query(GuildConfig).filter_by(guild_id=member.guild.id).first()
+                        lang = str(gc.language) if gc and gc.language else "ru"
+                        is_ru = lang == "ru"
                         embed = discord.Embed(
-                            title="🎤 Панель управления",
-                            description=f"**Владелец:** {member.mention}\nИспользуйте кнопки для управления:",
+                            title="🎤 Панель управления" if is_ru else "🎤 Control Panel",
+                            description=f"**{'Владелец' if is_ru else 'Owner'}:** {member.mention}\n{'Используйте кнопки для управления' if is_ru else 'Use buttons to control'}",
                             color=discord.Color.blurple()
                         )
-                        embed.add_field(name="🔒/🔓", value="Закрыть/открыть", inline=True)
-                        embed.add_field(name="👁️/👀", value="Скрыть/показать", inline=True)
-                        embed.add_field(name="✏️", value="Переименовать", inline=True)
-                        embed.add_field(name="👥", value="Лимит юзеров", inline=True)
-                        embed.add_field(name="➕/➖", value="Пригласить/выгнать", inline=True)
-                        embed.add_field(name="🚫/👑", value="Забанить/передать", inline=True)
-                        embed.add_field(name="🔊", value="Битрейт", inline=True)
-                        view = VoiceControlPanel(new_channel.id)
+                        embed.add_field(name="🔒/🔓", value="Закрыть/открыть" if is_ru else "Lock/Unlock", inline=True)
+                        embed.add_field(name="👁️/👀", value="Скрыть/показать" if is_ru else "Hide/Show", inline=True)
+                        embed.add_field(name="✏️", value="Переименовать" if is_ru else "Rename", inline=True)
+                        embed.add_field(name="👥", value="Лимит" if is_ru else "User limit", inline=True)
+                        embed.add_field(name="➕/➖", value="Пригласить/выгнать" if is_ru else "Invite/Kick", inline=True)
+                        embed.add_field(name="🚫/👑", value="Забанить/передать" if is_ru else "Ban/Transfer", inline=True)
+                        embed.add_field(name="🔊", value="Битрейт" if is_ru else "Bitrate", inline=True)
+                        view = VoiceControlPanel(new_channel.id, lang)
                         msg = await new_channel.send(embed=embed, view=view)
                         self.active_controls[new_channel.id] = msg.id
             finally:
@@ -343,7 +350,7 @@ class VoiceChannels(commands.Cog):
                     self.active_controls.pop(before.channel.id, None)
                     try:
                         await before.channel.delete()
-                    except:
+                    except Exception:
                         pass
                     session.delete(tc)
                     session.commit()

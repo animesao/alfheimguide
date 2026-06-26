@@ -153,7 +153,7 @@ class Giveaways(commands.Cog):
         if channel:
             try:
                 msg = await channel.fetch_message(giveaway.message_id)
-            except:
+            except Exception:
                 msg = None
 
             if entries:

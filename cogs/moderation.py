@@ -19,7 +19,7 @@ class Moderation(commands.Cog):
     async def send_dm_safe(self, user: Union[discord.Member, discord.User], embed: discord.Embed):
         try:
             await user.send(embed=embed)
-        except:
+        except Exception:
             pass
 
     async def log_mod_action(self, guild: discord.Guild, embed: discord.Embed):

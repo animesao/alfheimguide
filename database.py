@@ -1,5 +1,4 @@
 import os
-import sqlite3
 from datetime import datetime
 from sqlalchemy import (
     create_engine, Column, Integer, String, DateTime, ForeignKey,
@@ -425,6 +424,17 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+SCHEMA_VERSION = 1
+
+
+def get_schema_version(conn) -> int:
+    try:
+        row = conn.execute(text("PRAGMA user_version")).fetchone()
+        return row[0] if row else 0
+    except Exception:
+        return 0
+
+
 def init_db():
     os.makedirs("db", exist_ok=True)
     Base.metadata.create_all(bind=engine)
@@ -432,25 +442,37 @@ def init_db():
 
 
 def _migrate_schema():
-    """Add missing columns to existing tables (SQLite ALTER TABLE)"""
-    inspector = inspect(engine)
-    for table_name, model in Base.metadata.tables.items():
-        existing = {c["name"] for c in inspector.get_columns(table_name)}
-        for column in model.columns:
-            if column.name not in existing:
-                col_type = column.type.compile(engine.dialect)
-                nullable = "NULL" if column.nullable else "NOT NULL"
-                default = ""
-                if column.default is not None:
-                    if isinstance(column.default.arg, str):
-                        default = f" DEFAULT '{column.default.arg}'"
-                    elif isinstance(column.default.arg, (int, float)):
-                        default = f" DEFAULT {column.default.arg}"
-                try:
-                    with engine.begin() as conn:
+    """Add missing columns to existing tables (SQLite ALTER TABLE).
+    Uses PRAGMA user_version to avoid re-running completed migrations.
+    """
+    with engine.begin() as conn:
+        current = get_schema_version(conn)
+        if current >= SCHEMA_VERSION:
+            return
+        inspector = inspect(engine)
+        for table_name, model in Base.metadata.tables.items():
+            existing = {c["name"] for c in inspector.get_columns(table_name)}
+            for column in model.columns:
+                if column.name not in existing:
+                    col_type = column.type.compile(engine.dialect)
+                    nullable = "NULL" if column.nullable else "NOT NULL"
+                    default = ""
+                    if column.default is not None:
+                        arg = column.default.arg
+                        if callable(arg):
+                            try:
+                                arg = arg()
+                            except Exception:
+                                arg = None
+                        if isinstance(arg, str):
+                            default = f" DEFAULT '{arg}'"
+                        elif isinstance(arg, (int, float, bool)):
+                            default = f" DEFAULT {arg}"
+                    try:
                         conn.execute(
                             text(f"ALTER TABLE {table_name} ADD COLUMN {column.name} {col_type} {nullable}{default}")
                         )
-                    print(f"[migration] Added column {table_name}.{column.name}")
-                except Exception as e:
-                    print(f"[migration] Skipped {table_name}.{column.name}: {e}")
+                        print(f"[migration] Added column {table_name}.{column.name}")
+                    except Exception as e:
+                        print(f"[migration] Skipped {table_name}.{column.name}: {e}")
+        conn.execute(text(f"PRAGMA user_version = {SCHEMA_VERSION}"))

@@ -218,7 +218,7 @@ class Welcome(commands.Cog):
             if config and config.welcome_dm_enabled and config.welcome_dm_message:
                 try:
                     await member.send(self.format_text(config.welcome_dm_message, member))
-                except:
+                except Exception:
                     pass
 
             if config and config.welcome_auto_role_id:
@@ -226,7 +226,7 @@ class Welcome(commands.Cog):
                 if role:
                     try:
                         await member.add_roles(role)
-                    except:
+                    except Exception:
                         pass
         finally:
             session.close()

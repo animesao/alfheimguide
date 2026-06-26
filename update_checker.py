@@ -7,7 +7,6 @@ import os
 import sys
 import json
 import logging
-import subprocess
 from typing import Optional, Dict, Any
 from datetime import datetime
 import aiohttp
@@ -102,83 +101,74 @@ class UpdateChecker:
             "download_url": self.release_info.get("zipball_url", ""),
         }
     
+    async def _run_git(self, args: list[str]) -> tuple[int, str, str]:
+        proc = await asyncio.create_subprocess_exec(
+            "git", *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+            return proc.returncode or 0, stdout.decode("utf-8", errors="replace"), stderr.decode("utf-8", errors="replace")
+        except asyncio.TimeoutError:
+            proc.kill()
+            raise
+
+    async def _run_pip(self, args: list[str]) -> tuple[int, str, str]:
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, "-m", "pip", *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+            return proc.returncode or 0, stdout.decode("utf-8", errors="replace"), stderr.decode("utf-8", errors="replace")
+        except asyncio.TimeoutError:
+            proc.kill()
+            raise
+
     async def attempt_auto_update(self) -> bool:
         """Attempt to automatically update the bot"""
         if not self.update_available:
             return False
-        
+
         logger.info("🔄 Attempting automatic update...")
-        
+
         try:
-            # Check if we're in a git repository
-            result = subprocess.run(
-                ["git", "rev-parse", "--git-dir"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            
-            if result.returncode != 0:
+            code, out, err = await self._run_git(["rev-parse", "--git-dir"])
+            if code != 0:
                 logger.warning("Not a git repository, cannot auto-update")
                 return False
-            
-            # Fetch latest changes
+
             logger.info("📥 Fetching latest changes from GitHub...")
-            fetch_result = subprocess.run(
-                ["git", "fetch", "origin", "main"],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            
-            if fetch_result.returncode != 0:
-                logger.error(f"Failed to fetch: {fetch_result.stderr}")
+            code, out, err = await self._run_git(["fetch", "origin", "main"])
+            if code != 0:
+                logger.error(f"Failed to fetch: {err}")
                 return False
-            
-            # Check if there are local changes
-            status_result = subprocess.run(
-                ["git", "status", "--porcelain"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            
-            if status_result.stdout.strip():
+
+            code, out, err = await self._run_git(["status", "--porcelain"])
+            if out.strip():
                 logger.warning("⚠️ Local changes detected, skipping auto-update")
                 logger.info("Please commit or stash your changes before updating")
                 return False
-            
-            # Pull latest changes
+
             logger.info("⬇️ Pulling latest changes...")
-            pull_result = subprocess.run(
-                ["git", "pull", "origin", "main"],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            
-            if pull_result.returncode != 0:
-                logger.error(f"Failed to pull: {pull_result.stderr}")
+            code, out, err = await self._run_git(["pull", "origin", "main"])
+            if code != 0:
+                logger.error(f"Failed to pull: {err}")
                 return False
-            
-            # Install/update dependencies
+
             logger.info("📦 Installing dependencies...")
-            pip_result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", "-r", "requirements.txt", "--upgrade"],
-                capture_output=True,
-                text=True,
-                timeout=120
-            )
-            
-            if pip_result.returncode != 0:
-                logger.warning(f"Dependency installation had issues: {pip_result.stderr}")
-            
+            code, out, err = await self._run_pip(["install", "-r", "requirements.txt", "--upgrade"])
+            if code != 0:
+                logger.warning(f"Dependency installation had issues: {err}")
+
             logger.info(f"✅ Successfully updated to v{self.latest_version}!")
             logger.info("🔄 Please restart the bot to apply changes")
-            
+
             return True
-            
-        except subprocess.TimeoutExpired:
+
+        except asyncio.TimeoutError:
             logger.error("Update process timed out")
             return False
         except Exception as e:
